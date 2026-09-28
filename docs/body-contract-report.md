@@ -10,7 +10,7 @@
 > hartes Gate in `scripts/validate-mcp-tools.mjs` (Exit 1 + Auto-Issue) — hier weiterhin nur
 > zur Übersicht gelistet. Die übrigen drei Typen bleiben vollständig advisory.
 
-**Erzeugt:** 2026-09-21T06:33:10.009Z
+**Erzeugt:** 2026-09-28T09:17:51.550Z
 
 ## Zusammenfassung
 
@@ -77,7 +77,7 @@ Das Tool hat ein untypisiertes `z.record(...)`-Feld (z.B. `settings`), obwohl de
 | `update_backup_destination` | PUT | `/api/backup/destinations/{destinationId}` | - | backup-destinations.ts:118 |
 | `update_config_set` | PUT | `/api/config-sets/{configSetId}` | - | users.ts:298 |
 | `update_container` | POST | `/api/containers/{containerId}/update` | - | containers.ts:279 |
-| `update_container_runtime` | POST | `/api/containers/{containerId}/update-runtime` | - | containers.ts:546 |
+| `update_container_runtime` | POST | `/api/containers/{containerId}/update-runtime` | - | containers.ts:568 |
 | `update_environment` | PUT | `/api/environments/{environmentId}` | - | environments.ts:197 |
 | `update_environment_notification` | PUT | `/api/environments/{environmentId}/notifications/{notificationId}` | - | environments.ts:348 |
 | `update_general_settings` | POST | `/api/settings/general` | - | system.ts:112 |

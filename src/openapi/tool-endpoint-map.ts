@@ -283,6 +283,7 @@ export const TOOL_ENDPOINT_MAP: Readonly<Record<string, ToolEndpointEntry>> = {
   "run_backup_config": { method: "POST", path: "/api/backup/configs/{id}/run" },
   "run_backup_destination_task": { method: "POST", path: "/api/backup/destinations/{id}/task" },
   "run_backup_restore": { method: "POST", path: "/api/backup/restore" },
+  "run_container_command": { method: "POST", path: "/api/containers/{id}/exec/run" },
   "run_schedule_now": { method: "POST", path: "/api/schedules/{type}/{id}/run" },
   "scan_all_vulnerabilities": { method: "POST", path: "/api/vulnerabilities/scan-all" },
   "scan_image": { method: "POST", path: "/api/images/scan" },
