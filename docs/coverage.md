@@ -4,21 +4,21 @@
 > Wird täglich vom Workflow `.github/workflows/api-schema-sync.yml` neu erzeugt und bei
 > Änderung committet. Grundlage: `docs/dockhand-openapi.json` (via `deriveRoutesFromOpenapi()`).
 
-**Erzeugt:** 2026-10-22T10:49:09.552Z
+**Erzeugt:** 2026-10-22T11:16:53.254Z
 **Dockhand-Upstream-Commit:** `9efea8ba2e1e8779441a9b99c101a03f19ca515f`
 **Schema-Endpunkte gesamt:** 282
 
 ## Coverage
 
-**100.0%** (377/377 in-Scope-Endpunkte haben ein MCP-Tool)
+**100.0%** (379/379 in-Scope-Endpunkte haben ein MCP-Tool)
 
 | Status | Anzahl |
 |--------|--------|
-| COVERED | 377 |
+| COVERED | 379 |
 | MISSING_TOOL | 0 |
 | Deliberately omitted (Registry, siehe unten) | 2 |
 | ORPHANED_TOOL | 0 |
-| Bewusst ausgeschlossen (Streams, Callbacks, interne Routen) | 28 |
+| Bewusst ausgeschlossen (Streams, Callbacks, interne Routen) | 26 |
 
 ## MISSING_TOOL
 
