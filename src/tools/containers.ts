@@ -529,7 +529,7 @@ export function registerContainerTools(server: McpServer, client: DockhandClient
     {
       environmentId: z.number().describe('Environment ID'),
       containerId: z.string().describe('Container ID'),
-      cmd: z.array(z.string()).describe('Command and arguments to run as a one-shot, non-interactive exec, e.g. ["sh", "-c", "echo hi && exit 3"]. Must be a non-empty array of strings.'),
+      cmd: z.array(z.string()).min(1).describe('Command and arguments to run as a one-shot, non-interactive exec, e.g. ["sh", "-c", "echo hi && exit 3"]. Must be a non-empty array of strings.'),
       user: z.string().optional().describe('User to run as (e.g. "root" or "1000:1000")'),
       workingDir: z.string().optional().describe('Working directory inside the container'),
     },

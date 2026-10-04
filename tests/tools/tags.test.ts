@@ -293,3 +293,30 @@ describe('set_stack_tags', () => {
     );
   });
 });
+
+describe('integer-ID validation (Copilot/Codex review)', () => {
+  it('update_tag rejects a fractional tagId', () => {
+    const { schemas } = setup();
+    const shape = z.object(schemas.get('update_tag')!);
+    expect(shape.safeParse({ tagId: 1.5 }).success).toBe(false);
+    expect(shape.safeParse({ tagId: 3 }).success).toBe(true);
+  });
+  it('delete_tag rejects a fractional tagId', () => {
+    const { schemas } = setup();
+    const shape = z.object(schemas.get('delete_tag')!);
+    expect(shape.safeParse({ tagId: 1.5 }).success).toBe(false);
+    expect(shape.safeParse({ tagId: 3 }).success).toBe(true);
+  });
+  it('set_container_tags rejects fractional tagIds (upstream would silently clear the assignment)', () => {
+    const { schemas } = setup();
+    const shape = z.object(schemas.get('set_container_tags')!);
+    expect(shape.safeParse({ containerName: 'x', tagIds: [1.5] }).success).toBe(false);
+    expect(shape.safeParse({ containerName: 'x', tagIds: [1, 2] }).success).toBe(true);
+  });
+  it('set_stack_tags rejects fractional tagIds', () => {
+    const { schemas } = setup();
+    const shape = z.object(schemas.get('set_stack_tags')!);
+    expect(shape.safeParse({ stackName: 'x', tagIds: [1.5] }).success).toBe(false);
+    expect(shape.safeParse({ stackName: 'x', tagIds: [1, 2] }).success).toBe(true);
+  });
+});

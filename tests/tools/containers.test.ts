@@ -206,3 +206,12 @@ describe('chown_container_file', () => {
     );
   });
 });
+
+describe('run_container_exec cmd validation (Copilot/Codex review)', () => {
+  it('rejects an empty cmd array (handler requires a non-empty command)', () => {
+    const { schemas } = setup();
+    const shape = z.object(schemas.get('run_container_exec')!);
+    expect(shape.safeParse({ environmentId: 1, containerId: 'c', cmd: [] }).success).toBe(false);
+    expect(shape.safeParse({ environmentId: 1, containerId: 'c', cmd: ['sh', '-c', 'true'] }).success).toBe(true);
+  });
+});

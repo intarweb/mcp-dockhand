@@ -72,7 +72,7 @@ export function registerTagTools(server: McpServer, client: DockhandClient): voi
 
   registerTool(server, 'update_tag',
     {
-      tagId: z.number().describe('Tag ID'),
+      tagId: z.number().int().describe('Tag ID'),
       name: z.string().optional().describe('New tag name'),
       color: z.string().optional().describe('New tag color'),
       icon: z.string().nullable().optional().describe('New tag icon (pass null to clear it back to default; handler accepts icon: string|null)'),
@@ -87,7 +87,7 @@ export function registerTagTools(server: McpServer, client: DockhandClient): voi
   );
 
   registerTool(server, 'delete_tag',
-    { tagId: z.number().describe('Tag ID') },
+    { tagId: z.number().int().describe('Tag ID') },
     async ({ tagId }) => {
       return jsonResponse(await client.delete(`/api/tags/${encodePath(tagId)}`));
     }
@@ -118,7 +118,7 @@ export function registerTagTools(server: McpServer, client: DockhandClient): voi
     {
       environmentId: z.number().optional().describe('Environment ID (omit for local/default environment)'),
       containerName: z.string().describe('Container name'),
-      tagIds: z.array(z.number()).describe('Full set of tag IDs to assign to the container (replaces the existing assignment)'),
+      tagIds: z.array(z.number().int()).describe('Full set of tag IDs to assign to the container (replaces the existing assignment)'),
     },
     async ({ environmentId, containerName, tagIds }) => {
       return jsonResponse(await client.put(`/api/container-tags/${encodePath(containerName)}`, { tagIds }, { env: environmentId }));
@@ -150,7 +150,7 @@ export function registerTagTools(server: McpServer, client: DockhandClient): voi
     {
       environmentId: z.number().optional().describe('Environment ID (omit for local/default environment)'),
       stackName: z.string().describe('Stack name'),
-      tagIds: z.array(z.number()).describe('Full set of tag IDs to assign to the stack (replaces the existing assignment)'),
+      tagIds: z.array(z.number().int()).describe('Full set of tag IDs to assign to the stack (replaces the existing assignment)'),
     },
     async ({ environmentId, stackName, tagIds }) => {
       return jsonResponse(await client.put(`/api/stacks/${encodePath(stackName)}/tags`, { tagIds }, { env: environmentId }));
