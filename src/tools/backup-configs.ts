@@ -140,9 +140,15 @@ export function registerBackupConfigTools(server: McpServer, client: DockhandCli
   );
 
   registerTool(server, 'delete_backup_config',
-    { configId: z.number().describe('Backup configuration id (from list_backup_configs)') },
-    async ({ configId }) => {
-      return jsonResponse(await client.delete(`/api/backup/configs/${encodePath(configId)}`));
+    {
+      configId: z.number().describe('Backup configuration id (from list_backup_configs)'),
+      // Dockhand 1.0.51 (T7). Handler: url.searchParams.get('deleteSnapshots') === 'true'.
+      deleteSnapshots: z.boolean().optional().describe('Also forget and prune this config\'s snapshots (restic forget --prune, best-effort — a restic failure is reported in the response but never blocks the delete). Default false: snapshots survive the config delete so a restore is still possible.'),
+    },
+    async ({ configId, deleteSnapshots }) => {
+      return jsonResponse(await client.delete(`/api/backup/configs/${encodePath(configId)}`, {
+        deleteSnapshots: deleteSnapshots ? 'true' : undefined,
+      }));
     }
   );
 

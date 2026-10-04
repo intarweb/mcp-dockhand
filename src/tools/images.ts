@@ -117,9 +117,14 @@ export function registerImageTools(server: McpServer, client: DockhandClient): v
     {
       environmentId: z.number().describe('Environment ID'),
       imageId: z.string().describe('Image ID'),
+      // Dockhand 1.0.51 (T7). Handler: url.searchParams.get('tag') — names the downloaded
+      // tar after this tag instead of the image's first tag (also used to pick which of the
+      // image's tags docker daemon exports by, since a tar saved by bare id carries
+      // RepoTags:null and loads back unnamed).
+      tag: z.string().optional().describe('Which of the image\'s tags to name the export after and export by (defaults to its first tag if omitted)'),
     },
-    async ({ environmentId, imageId }) => {
-      return jsonResponse(await client.get(`/api/images/${encodePath(imageId)}/export`, { env: environmentId }));
+    async ({ environmentId, imageId, tag }) => {
+      return jsonResponse(await client.get(`/api/images/${encodePath(imageId)}/export`, { env: environmentId, tag }));
     }
   );
 

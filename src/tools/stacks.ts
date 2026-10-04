@@ -870,12 +870,21 @@ export function registerStackTools(server: McpServer, client: DockhandClient): v
       // brand-new stack, where a name/port clash with a same-named running
       // stack must still be reported.
       existing: z.boolean().optional().describe('Set true when validating an EXISTING stack\'s compose (self-excludes its own containers from collision checks) — undocumented handler-only field, ground-truthed against v1.0.46 source'),
+      // Dockhand 1.0.51 (T7). Handler body-type `providerKeys?: string[]` (ground-truthed
+      // against v1.0.51 src/routes/api/stacks/[name]/validate/+server.ts, declared line 64,
+      // used line 85 via withProviderKeysAsSet/sanitizeProviderKeys). A bound secret
+      // provider supplies more `${VAR}` keys at deploy time than `envVars` alone carries —
+      // pass the names the editor probed (the ones behind its IN VAULT markers) so
+      // `docker compose config` treats them as set, without transmitting their values (no
+      // value is needed for a presence check, and none is requested here).
+      providerKeys: z.array(z.string()).optional().describe('Secret-provider-backed env var NAMES to treat as set (no values — a provider-bound stack supplies these at deploy time; omit if the stack is not bound to a secret provider)'),
     },
-    async ({ environmentId, name, compose, config, envVars, existing }) => {
+    async ({ environmentId, name, compose, config, envVars, existing, providerKeys }) => {
       const body: Record<string, unknown> = { compose };
       if (config !== undefined) body.config = config;
       if (envVars !== undefined) body.envVars = envVars;
       if (existing !== undefined) body.existing = existing;
+      if (providerKeys !== undefined) body.providerKeys = providerKeys;
       return jsonResponse(await client.post(`/api/stacks/${encodePath(name)}/validate`, body, { env: environmentId }));
     }
   );

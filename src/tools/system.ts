@@ -161,9 +161,14 @@ export function registerSystemTools(server: McpServer, client: DockhandClient): 
   );
 
   registerTool(server, 'get_scanner_settings',
-    {},
-    async () => {
-      return jsonResponse(await client.get('/api/settings/scanner'));
+    {
+      // Dockhand 1.0.51 (T7). Handler: url.searchParams.get('checkNewerVersions') === 'true'.
+      checkNewerVersions: z.boolean().optional().describe('When true, also ask the registry whether a newer scanner RELEASE exists (adds `newerVersions` to the response) — slower, reaches the registry for the scanner images\' tag lists. Default false.'),
+    },
+    async ({ checkNewerVersions }) => {
+      return jsonResponse(await client.get('/api/settings/scanner', {
+        checkNewerVersions: checkNewerVersions ? 'true' : undefined,
+      }));
     }
   );
 
