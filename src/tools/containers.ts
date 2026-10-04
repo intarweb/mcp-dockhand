@@ -397,6 +397,21 @@ export function registerContainerTools(server: McpServer, client: DockhandClient
     }
   );
 
+  registerTool(server, 'chown_container_file',
+    {
+      environmentId: z.number().describe('Environment ID'),
+      containerId: z.string().describe('Container ID'),
+      path: z.string().describe('File or directory path inside container'),
+      owner: z.string().describe('Owner spec, e.g. "1000:1000" or "user:group"'),
+      recursive: z.boolean().optional().describe('Apply ownership change recursively (default: false)'),
+    },
+    async ({ environmentId, containerId, path, owner, recursive }) => {
+      const body: Record<string, unknown> = { path, owner };
+      if (recursive !== undefined) body.recursive = recursive;
+      return jsonResponse(await client.post(`/api/containers/${encodePath(containerId)}/files/chown`, body, { env: environmentId }));
+    }
+  );
+
   // --- Container File Download / Upload ---
 
   registerTool(server, 'download_container_file',
@@ -504,6 +519,22 @@ export function registerContainerTools(server: McpServer, client: DockhandClient
       if (shell) body.shell = shell;
       if (user) body.user = user;
       return jsonResponse(await client.post(`/api/containers/${encodePath(containerId)}/exec`, body, { envId: environmentId }));
+    }
+  );
+
+  registerTool(server, 'run_container_exec',
+    {
+      environmentId: z.number().describe('Environment ID'),
+      containerId: z.string().describe('Container ID'),
+      cmd: z.array(z.string()).describe('Command and arguments to run as a one-shot, non-interactive exec, e.g. ["sh", "-c", "echo hi && exit 3"]. Must be a non-empty array of strings.'),
+      user: z.string().optional().describe('User to run as (e.g. "root" or "1000:1000")'),
+      workingDir: z.string().optional().describe('Working directory inside the container'),
+    },
+    async ({ environmentId, containerId, cmd, user, workingDir }) => {
+      const body: Record<string, unknown> = { cmd };
+      if (user !== undefined) body.user = user;
+      if (workingDir !== undefined) body.workingDir = workingDir;
+      return jsonResponse(await client.post(`/api/containers/${encodePath(containerId)}/exec/run`, body, { envId: environmentId }));
     }
   );
 
