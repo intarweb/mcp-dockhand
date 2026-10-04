@@ -35,8 +35,11 @@ export function registerStackTools(server: McpServer, client: DockhandClient): v
       })).optional().describe('Environment variables'),
       rawEnvContent: z.string().optional().describe('Raw .env file content'),
       secretProviderId: z.number().nullable().optional().describe('Bind the stack to a configured secret provider (id from list_secret_providers); its secrets are injected at deploy. Pass null to leave it unbound. Dockhand 1.0.42+'),
+      pull: z.boolean().optional().describe('Pull newer images before deploying when start:true (default: false — see deploy_stack, whose default is pull:true; this endpoint does NOT default to pulling). Ignored when start:false. Dockhand 1.0.51+'),
+      build: z.boolean().optional().describe('Build services that declare a `build:` section when start:true (default: false). Ignored when start:false. Dockhand 1.0.51+'),
+      forceRecreate: z.boolean().optional().describe('Recreate containers even when their resolved configuration is unchanged, when start:true (default: false). Ignored when start:false. Dockhand 1.0.51+'),
     },
-    async ({ environmentId, name, compose, composePath, envPath, start, envVars, rawEnvContent, secretProviderId }) => {
+    async ({ environmentId, name, compose, composePath, envPath, start, envVars, rawEnvContent, secretProviderId, pull, build, forceRecreate }) => {
       const body: Record<string, unknown> = { name, compose };
       if (composePath !== undefined) body.composePath = composePath;
       if (envPath !== undefined) body.envPath = envPath;
@@ -44,6 +47,9 @@ export function registerStackTools(server: McpServer, client: DockhandClient): v
       if (envVars) body.envVars = envVars;
       if (rawEnvContent) body.rawEnvContent = rawEnvContent;
       if (secretProviderId !== undefined) body.secretProviderId = secretProviderId;
+      if (pull !== undefined) body.pull = pull;
+      if (build !== undefined) body.build = build;
+      if (forceRecreate !== undefined) body.forceRecreate = forceRecreate;
 
       return jsonResponse(await client.postSSE('/api/stacks', body, { env: environmentId }));
     }
@@ -134,11 +140,17 @@ export function registerStackTools(server: McpServer, client: DockhandClient): v
       content: z.string().describe('New compose file content'),
       restart: z.boolean().optional().describe('Redeploy after update (default: false)'),
       secretProviderId: z.number().nullable().optional().describe('Bind the stack to a configured secret provider (id from list_secret_providers); its secrets are injected at deploy. Pass null to CLEAR an existing binding; omit to leave it unchanged. Dockhand 1.0.42+'),
+      pull: z.boolean().optional().describe('Pull newer images before redeploying — only applied when restart:true (default: false). Dockhand 1.0.51+'),
+      build: z.boolean().optional().describe('Build services that declare a `build:` section — only applied when restart:true (default: false). Dockhand 1.0.51+'),
+      forceRecreate: z.boolean().optional().describe('Recreate containers even when their resolved configuration is unchanged — only applied when restart:true (default: TRUE when omitted here — see create_stack, which defaults this to false; env var changes need --force-recreate to take effect). Dockhand 1.0.51+'),
     },
-    async ({ environmentId, name, content, restart, secretProviderId }) => {
+    async ({ environmentId, name, content, restart, secretProviderId, pull, build, forceRecreate }) => {
       const body: Record<string, unknown> = { content };
       if (restart !== undefined) body.restart = restart;
       if (secretProviderId !== undefined) body.secretProviderId = secretProviderId;
+      if (pull !== undefined) body.pull = pull;
+      if (build !== undefined) body.build = build;
+      if (forceRecreate !== undefined) body.forceRecreate = forceRecreate;
 
       if (restart) {
         return jsonResponse(await client.putSSE(`/api/stacks/${encodePath(name)}/compose`, body, { env: environmentId }));

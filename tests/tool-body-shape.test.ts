@@ -107,6 +107,10 @@ describe('getToolBodyShape — captured from a real tool registration (create_st
       'rawEnvContent',
       // Added for Dockhand 1.0.42 — binds the stack to a configured secret provider.
       'secretProviderId',
+      // Added for Dockhand 1.0.51 — deploy-control options, only applied when start:true.
+      'pull',
+      'build',
+      'forceRecreate',
     ]);
     expect(result.passthrough).toBe(false);
   });
