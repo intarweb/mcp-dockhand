@@ -150,6 +150,11 @@ describe('update_tag', () => {
     const { client } = await call('update_tag', { tagId: 3 });
     expect(client.put).toHaveBeenCalledWith('/api/tags/3', {});
   });
+
+  it('icon cleared to null forwards body.icon=null (handler supports icon: string|null)', async () => {
+    const { client } = await call('update_tag', { tagId: 3, icon: null });
+    expect(client.put).toHaveBeenCalledWith('/api/tags/3', { icon: null });
+  });
 });
 
 describe('delete_tag', () => {

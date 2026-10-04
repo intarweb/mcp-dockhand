@@ -75,7 +75,7 @@ export function registerTagTools(server: McpServer, client: DockhandClient): voi
       tagId: z.number().describe('Tag ID'),
       name: z.string().optional().describe('New tag name'),
       color: z.string().optional().describe('New tag color'),
-      icon: z.string().optional().describe('New tag icon'),
+      icon: z.string().nullable().optional().describe('New tag icon (pass null to clear it back to default; handler accepts icon: string|null)'),
     },
     async ({ tagId, name, color, icon }) => {
       const body: Record<string, unknown> = {};
