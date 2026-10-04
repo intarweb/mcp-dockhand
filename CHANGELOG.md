@@ -5,6 +5,28 @@ All notable changes to **MCP-Dockhand** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.18.0](https://github.com/strausmann/mcp-dockhand/compare/v1.17.0...v1.18.0) (2026-10-04)
+
+### Features
+
+* **tools:** add default secret provider and snapshot batch-delete tools ([7c637ea](https://github.com/strausmann/mcp-dockhand/commit/7c637ea44d9fb4a9d6c59b5a0ddcedc729683165))
+* **tools:** add Dockhand 1.0.51 contract params to four existing tools ([ae23e76](https://github.com/strausmann/mcp-dockhand/commit/ae23e76f4b76095a03c227ed2f94f273ab388088))
+* **tools:** add Dockhand tag management tools (Dockhand 1.0.51) ([ac4ff0f](https://github.com/strausmann/mcp-dockhand/commit/ac4ff0f81e9bc4a729ad76b7e59cfc08bed69765))
+* **tools:** add environment-order and tag-order preference tools (Dockhand 1.0.51) ([d3d693e](https://github.com/strausmann/mcp-dockhand/commit/d3d693ed3cb0fa150c1e83dcc1fceb91298253ea))
+* **tools:** add owner and deploy-control params to v1.0.51 stack/file tools ([dbb325b](https://github.com/strausmann/mcp-dockhand/commit/dbb325bf2ee6e5419011d5d55e1fca8b88cabb50))
+* **tools:** add stack deploy history tools (Dockhand 1.0.51) ([e43de28](https://github.com/strausmann/mcp-dockhand/commit/e43de285a4c996a6eb6db66d08464d3079797881))
+* **tools:** add synchronous container exec and file chown tools (Dockhand 1.0.51) ([df616a9](https://github.com/strausmann/mcp-dockhand/commit/df616a9dba0e693204ed63cb63aa4618d43434b9))
+
+### Bug Fixes
+
+* **tools:** allow clearing a tag icon via update_tag ([02cb77d](https://github.com/strausmann/mcp-dockhand/commit/02cb77d94a7fce1c92fe5480961fe7ac072e7257))
+* **tools:** tighten 1.0.51 input validation and flag deploy-log secrets ([3789aa2](https://github.com/strausmann/mcp-dockhand/commit/3789aa2ab785b06c69f687956e483a018e2005b6))
+* **tools:** tighten remaining 1.0.51 schema validation (review round 2) ([48b9564](https://github.com/strausmann/mcp-dockhand/commit/48b956446926a4f8fbc00870b7fe96210f123fae)), references [#280](https://github.com/strausmann/mcp-dockhand/issues/280)
+
+### Documentation
+
+* **api:** regenerate body-contract report for 1.0.51 tool set ([529207e](https://github.com/strausmann/mcp-dockhand/commit/529207ec082743ce130999ecdd38e458d33d68f9))
+
 ## [1.17.0](https://github.com/strausmann/mcp-dockhand/compare/v1.16.0...v1.17.0) (2026-09-07)
 
 ### Features
