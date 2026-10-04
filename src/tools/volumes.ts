@@ -93,7 +93,8 @@ export function registerVolumeTools(server: McpServer, client: DockhandClient): 
       volumeName: z.string().describe('Volume name'),
     },
     async ({ environmentId, volumeName }) => {
-      return jsonResponse(await client.get(`/api/volumes/${encodePath(volumeName)}/export`, { env: environmentId }));
+      const buffer = await client.getRaw(`/api/volumes/${encodePath(volumeName)}/export`, { env: environmentId });
+      return textResponse(`base64:${buffer.toString('base64')}`);
     }
   );
 
