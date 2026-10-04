@@ -121,11 +121,7 @@ export function registerTagTools(server: McpServer, client: DockhandClient): voi
       tagIds: z.array(z.number()).describe('Full set of tag IDs to assign to the container (replaces the existing assignment)'),
     },
     async ({ environmentId, containerName, tagIds }) => {
-      return jsonResponse(await client.put(
-        `/api/container-tags/${encodePath(containerName)}`,
-        { tagIds },
-        { env: environmentId }
-      ));
+      return jsonResponse(await client.put(`/api/container-tags/${encodePath(containerName)}`, { tagIds }, { env: environmentId }));
     }
   );
 
@@ -157,11 +153,7 @@ export function registerTagTools(server: McpServer, client: DockhandClient): voi
       tagIds: z.array(z.number()).describe('Full set of tag IDs to assign to the stack (replaces the existing assignment)'),
     },
     async ({ environmentId, stackName, tagIds }) => {
-      return jsonResponse(await client.put(
-        `/api/stacks/${encodePath(stackName)}/tags`,
-        { tagIds },
-        { env: environmentId }
-      ));
+      return jsonResponse(await client.put(`/api/stacks/${encodePath(stackName)}/tags`, { tagIds }, { env: environmentId }));
     }
   );
 }
