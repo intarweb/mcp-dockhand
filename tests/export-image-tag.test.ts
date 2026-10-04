@@ -1,15 +1,12 @@
 /**
- * `export_image`'s `tag` query parameter (Dockhand 1.0.51, T7) — a new, OPTIONAL
- * parameter on an existing tool; the pre-1.0.51 contract (environmentId + imageId,
- * `env` query only) must keep working unchanged.
+ * `export_image` — binary framing (#280) + its `tag` query parameter (1.0.51, T7).
  *
- * Ground-truthed against `Finsys/dockhand` v1.0.51,
- * `src/routes/api/images/[id]/export/+server.ts`:
- *   GET /api/images/{id}/export?env=<id>&tag=<tag>
- *   `url.searchParams.get('tag')` (line 42) — which of the image's tags to name the
- *   downloaded tar after and export BY (defaults to the image's first RepoTag when
- *   omitted; a bare-id export carries RepoTags:null and loads back unnamed, which is
- *   why the real tag matters here, not just the filename).
+ * `GET /api/images/{id}/export` returns a tar archive (`application/x-tar` /
+ * `application/gzip`, Finsys/dockhand v1.0.51 `src/routes/api/images/[id]/export/+server.ts`).
+ * It must therefore go through `client.getRaw()` (a Buffer, no UTF-8 decode) and be framed as
+ * `base64:<...>` text — NOT `client.get()` + `jsonResponse()`, which decodes the binary tar as
+ * UTF-8 and corrupts it (#280). The `tag` query param (line 42, `url.searchParams.get('tag')`)
+ * stays optional and backward compatible (pre-1.0.51: env + imageId only).
  */
 import { describe, it, expect, vi } from 'vitest';
 import { z } from 'zod';
@@ -20,9 +17,12 @@ type ZodShape = Record<string, z.ZodTypeAny>;
 
 interface MockClient {
   get: ReturnType<typeof vi.fn>;
+  getRaw: ReturnType<typeof vi.fn>;
   post: ReturnType<typeof vi.fn>;
   postRawBody: ReturnType<typeof vi.fn>;
 }
+
+const TAR = Buffer.from('fake-image-tar-bytes');
 
 function setup(): { handlers: Map<string, ToolHandler>; schemas: Map<string, ZodShape>; client: MockClient } {
   const handlers = new Map<string, ToolHandler>();
@@ -35,6 +35,7 @@ function setup(): { handlers: Map<string, ToolHandler>; schemas: Map<string, Zod
   };
   const client: MockClient = {
     get: vi.fn().mockResolvedValue({ ok: true }),
+    getRaw: vi.fn().mockResolvedValue(TAR),
     post: vi.fn().mockResolvedValue({ ok: true }),
     postRawBody: vi.fn().mockResolvedValue({ ok: true }),
   };
@@ -43,30 +44,54 @@ function setup(): { handlers: Map<string, ToolHandler>; schemas: Map<string, Zod
   return { handlers, schemas, client };
 }
 
+function textOut(res: unknown): string {
+  return (res as { content: { text: string }[] }).content[0]!.text;
+}
+
 async function call(name: string, args: Record<string, unknown>) {
   const { handlers, client } = setup();
   const handler = handlers.get(name);
   if (!handler) throw new Error(`${name} was not registered`);
-  await handler(args);
-  return client;
+  const result = await handler(args);
+  return { client, result };
 }
+
+describe('export_image — binary framing (#280)', () => {
+  it('uses client.getRaw (not get) and frames the tar as base64: text', async () => {
+    const { client, result } = await call('export_image', { environmentId: 2, imageId: 'sha256:abc123' });
+    expect(client.getRaw).toHaveBeenCalledWith('/api/images/sha256%3Aabc123/export', {
+      env: 2,
+      tag: undefined,
+    });
+    expect(client.get).not.toHaveBeenCalled();
+    expect(textOut(result)).toBe(`base64:${TAR.toString('base64')}`);
+  });
+
+  it('GEGENVERSUCH: the payload is the base64 of the raw bytes, not their UTF-8 text', async () => {
+    const { result } = await call('export_image', { environmentId: 2, imageId: 'sha256:abc123' });
+    const payload = textOut(result).replace(/^base64:/, '');
+    expect(Buffer.from(payload, 'base64').equals(TAR)).toBe(true);
+    // a UTF-8-decoded-then-JSON path (the #280 bug) would not round-trip to the exact bytes
+    expect(payload).not.toBe(TAR.toString('utf8'));
+  });
+});
 
 describe('export_image — tag param (T7)', () => {
   it('pre-1.0.51 contract: environmentId + imageId only, tag omitted from the query', async () => {
-    const client = await call('export_image', { environmentId: 2, imageId: 'sha256:abc123' });
-    expect(client.get).toHaveBeenCalledWith('/api/images/sha256%3Aabc123/export', {
+    const { client } = await call('export_image', { environmentId: 2, imageId: 'sha256:abc123' });
+    expect(client.getRaw).toHaveBeenCalledWith('/api/images/sha256%3Aabc123/export', {
       env: 2,
       tag: undefined,
     });
   });
 
   it('T7: tag is forwarded when given', async () => {
-    const client = await call('export_image', {
+    const { client } = await call('export_image', {
       environmentId: 2,
       imageId: 'sha256:abc123',
       tag: 'myapp:1.2.3',
     });
-    expect(client.get).toHaveBeenCalledWith('/api/images/sha256%3Aabc123/export', {
+    expect(client.getRaw).toHaveBeenCalledWith('/api/images/sha256%3Aabc123/export', {
       env: 2,
       tag: 'myapp:1.2.3',
     });
@@ -75,14 +100,12 @@ describe('export_image — tag param (T7)', () => {
   it('tag is optional — the tool schema accepts a call without it', () => {
     const { schemas } = setup();
     const schema = z.object(schemas.get('export_image')!);
-    const result = schema.safeParse({ environmentId: 2, imageId: 'sha256:abc123' });
-    expect(result.success).toBe(true);
+    expect(schema.safeParse({ environmentId: 2, imageId: 'sha256:abc123' }).success).toBe(true);
   });
 
   it('GEGENVERSUCH: a non-string tag is rejected by the tool schema', () => {
     const { schemas } = setup();
     const schema = z.object(schemas.get('export_image')!);
-    const result = schema.safeParse({ environmentId: 2, imageId: 'sha256:abc123', tag: 123 });
-    expect(result.success).toBe(false);
+    expect(schema.safeParse({ environmentId: 2, imageId: 'sha256:abc123', tag: 123 }).success).toBe(false);
   });
 });

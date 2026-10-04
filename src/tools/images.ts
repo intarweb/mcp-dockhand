@@ -5,7 +5,7 @@
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { DockhandClient } from '../client/dockhand-client.js';
-import { registerTool, jsonResponse } from '../utils/tool-helper.js';
+import { registerTool, jsonResponse, textResponse } from '../utils/tool-helper.js';
 import { encodePath } from '../utils/encode-path.js';
 
 export function registerImageTools(server: McpServer, client: DockhandClient): void {
@@ -124,7 +124,8 @@ export function registerImageTools(server: McpServer, client: DockhandClient): v
       tag: z.string().optional().describe('Which of the image\'s tags to name the export after and export by (defaults to its first tag if omitted)'),
     },
     async ({ environmentId, imageId, tag }) => {
-      return jsonResponse(await client.get(`/api/images/${encodePath(imageId)}/export`, { env: environmentId, tag }));
+      const buffer = await client.getRaw(`/api/images/${encodePath(imageId)}/export`, { env: environmentId, tag });
+      return textResponse(`base64:${buffer.toString('base64')}`);
     }
   );
 

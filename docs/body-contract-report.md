@@ -10,7 +10,7 @@
 > hartes Gate in `scripts/validate-mcp-tools.mjs` (Exit 1 + Auto-Issue) — hier weiterhin nur
 > zur Übersicht gelistet. Die übrigen drei Typen bleiben vollständig advisory.
 
-**Erzeugt:** 2026-10-04T14:07:48.022Z
+**Erzeugt:** 2026-10-04T15:24:58.670Z
 
 ## Zusammenfassung
 
@@ -60,7 +60,7 @@ Das Tool hat ein untypisiertes `z.record(...)`-Feld (z.B. `settings`), obwohl de
 | `create_secret_provider` | POST | `/api/secret-providers` | `name`, `type`, `config` | secret-providers.ts:73 |
 | `create_template_compose` | POST | `/api/templates/compose` | `template` | templates.ts:25 |
 | `create_template_source` | POST | `/api/templates/sources` | `name`, `url` | templates.ts:41 |
-| `create_volume` | POST | `/api/volumes` | `name` | volumes.ts:116 |
+| `create_volume` | POST | `/api/volumes` | `name` | volumes.ts:117 |
 | `receive_git_webhook` | POST | `/api/git/webhook/{webhookId}` | - | git-stacks.ts:394 |
 | `set_dashboard_preferences` | POST | `/api/dashboard/preferences` | - | dashboard.ts:29 |
 | `set_environment_image_prune` | POST | `/api/environments/{environmentId}/image-prune` | - | environments.ts:300 |

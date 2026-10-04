@@ -207,6 +207,18 @@ const DEPLOY_LOG_MAY_CONTAIN_SECRETS =
   'The returned text lands in the tool call itself, and therefore in transcripts and logs. Treat ' +
   'it as potentially secret-bearing and do not quote it wholesale.';
 
+const EXPORT_IMAGE_RETURNS_BASE64_TAR =
+  ' Returns the image as a base64-encoded tar archive (prefixed "base64:"), NOT JSON — ' +
+  'decode the part after "base64:" to bytes and write a .tar that `docker load` accepts. ' +
+  'The archive is the full image (all layers); handle it as opaque binary, do not log or ' +
+  'print it.';
+
+const EXPORT_VOLUME_RETURNS_BASE64_TAR =
+  ' Returns the volume contents as a base64-encoded tar archive (prefixed "base64:"), NOT ' +
+  'JSON — decode the part after "base64:" to a .tar. SECURITY: this is the volume data ' +
+  'byte-for-byte and completely unredacted; it can contain real secrets (passwords, keys, ' +
+  'credentialed config). Do not log or print the returned content.';
+
 export const TOOL_DESCRIPTION_SUFFIXES: Readonly<Record<string, string>> = {
   exec_container: EXEC_RETURNS_NO_OUTPUT,
   get_stack_env_raw: RETURNS_THE_FILE_VERBATIM,
@@ -224,4 +236,6 @@ export const TOOL_DESCRIPTION_SUFFIXES: Readonly<Record<string, string>> = {
   dump_backup_snapshot_file: BACKUP_SNAPSHOT_DUMP_MAY_EXPOSE_VOLUME_SECRETS,
   download_backup_snapshot_file: BACKUP_SNAPSHOT_DOWNLOAD_RETURNS_RAW_BYTES,
   get_stack_deploy_log: DEPLOY_LOG_MAY_CONTAIN_SECRETS,
+  export_image: EXPORT_IMAGE_RETURNS_BASE64_TAR,
+  export_volume: EXPORT_VOLUME_RETURNS_BASE64_TAR,
 };
