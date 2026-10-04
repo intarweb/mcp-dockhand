@@ -31,4 +31,50 @@ export function registerPreferenceTools(server: McpServer, client: DockhandClien
       return jsonResponse(await client.delete('/api/preferences/sidebar'));
     }
   );
+
+  registerTool(server, 'get_environment_order',
+    {},
+    async () => {
+      return jsonResponse(await client.get('/api/preferences/environment-order'));
+    }
+  );
+
+  registerTool(server, 'set_environment_order',
+    {
+      order: z.array(z.number().int()).describe('Environment ids in the desired display order (most preferred first). Must not repeat an id.'),
+    },
+    async ({ order }) => {
+      return jsonResponse(await client.post('/api/preferences/environment-order', { order }));
+    }
+  );
+
+  registerTool(server, 'reset_environment_order',
+    {},
+    async () => {
+      return jsonResponse(await client.delete('/api/preferences/environment-order'));
+    }
+  );
+
+  registerTool(server, 'get_tag_order',
+    {},
+    async () => {
+      return jsonResponse(await client.get('/api/preferences/tag-order'));
+    }
+  );
+
+  registerTool(server, 'set_tag_order',
+    {
+      order: z.array(z.number().int()).describe('Tag ids in the desired display order (most preferred first). Must not repeat an id.'),
+    },
+    async ({ order }) => {
+      return jsonResponse(await client.post('/api/preferences/tag-order', { order }));
+    }
+  );
+
+  registerTool(server, 'reset_tag_order',
+    {},
+    async () => {
+      return jsonResponse(await client.delete('/api/preferences/tag-order'));
+    }
+  );
 }
