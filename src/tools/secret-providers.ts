@@ -1,5 +1,14 @@
 /**
- * Secret-provider management tools (Dockhand 1.0.42+, 8 tools).
+ * Secret-provider management tools (Dockhand 1.0.42+, 10 tools).
+ *
+ * get_default_secret_provider / set_default_secret_provider (Dockhand 1.0.51, T5) — the
+ * global default to preselect on new stacks. Ground-truthed against
+ * src/routes/api/secret-providers/default/+server.ts: GET returns {providerId:number|null}
+ * (resolved against the live provider list server-side, so a stale/deleted id silently
+ * resolves to null). PUT accepts {providerId:number} to set it, or {providerId:null}
+ * (or the key omitted entirely) to clear it — `parseDefaultProviderId()` coerces either a
+ * number or a numeric string, so this tool's `z.number()` is the narrower, caller-facing
+ * type.
  *
  * Dockhand can pull a stack's secrets from an external manager (Vault, Infisical, Doppler,
  * 1Password Connect) instead of holding them itself. A provider is configured once, then
@@ -114,6 +123,22 @@ export function registerSecretProviderTools(server: McpServer, client: DockhandC
       const body: Record<string, unknown> = {};
       if (config !== undefined) body.config = config;
       return jsonResponse(await client.post(`/api/secret-providers/${encodePath(id)}/test`, body));
+    }
+  );
+
+  registerTool(server, 'get_default_secret_provider',
+    {},
+    async () => {
+      return jsonResponse(await client.get('/api/secret-providers/default'));
+    }
+  );
+
+  registerTool(server, 'set_default_secret_provider',
+    {
+      providerId: z.number().nullable().optional().describe('Secret provider ID to preselect for new stacks (from list_secret_providers). Pass null (or omit) to clear the default.'),
+    },
+    async ({ providerId }) => {
+      return jsonResponse(await client.put('/api/secret-providers/default', { providerId: providerId ?? null }));
     }
   );
 

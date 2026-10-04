@@ -139,6 +139,22 @@ import type { DockhandClient } from '../client/dockhand-client.js';
 import { registerTool, jsonResponse, textResponse } from '../utils/tool-helper.js';
 import { encodePath } from '../utils/encode-path.js';
 
+/*
+ * batch_delete_backup_snapshots (Dockhand 1.0.51, T6). Ground-truthed against
+ * src/routes/api/backup/snapshots/batch-delete/+server.ts:
+ *   POST /api/backup/snapshots/batch-delete, body {destinationId:number, snapshotIds:string[]}
+ * Both fields are typed optional in the handler's own cast (`as { destinationId?: number;
+ * snapshotIds?: string[] }`), but are factually REQUIRED at runtime — the handler 400s when
+ * `destinationId` is not a positive integer, and 400s again when `snapshotIds` is missing or
+ * an empty array. This tool's zod shape reflects the factual requirement (no `.optional()`),
+ * not the loose TS cast. Forgets+prunes all accessible ids from ONE destination in a SINGLE
+ * `restic forget --prune` call (one prune for the whole batch, not one per snapshot) —
+ * distinct from delete_backup_snapshot's one-at-a-time endpoint. Each id is still
+ * individually ownership- and (enterprise) environment-access-checked; ids that fail are
+ * skipped and reported back in `skipped`, never forgotten — unlike the single-delete tool,
+ * a per-id access failure here does not fail the whole call, only that id.
+ */
+
 export function registerBackupSnapshotTools(server: McpServer, client: DockhandClient): void {
 
   registerTool(server, 'list_backup_snapshots',
@@ -238,6 +254,16 @@ export function registerBackupSnapshotTools(server: McpServer, client: DockhandC
     },
     async ({ snapshotId, destinationId }) => {
       return jsonResponse(await client.get(`/api/backup/snapshots/${encodePath(snapshotId)}/metadata`, { destinationId }));
+    }
+  );
+
+  registerTool(server, 'batch_delete_backup_snapshots',
+    {
+      destinationId: z.number().describe('Backup destination all the snapshots live in (from list_backup_destinations) — required by the handler (400 if missing/non-positive)'),
+      snapshotIds: z.array(z.string()).min(1).describe('Restic snapshot ids to forget (from list_backup_snapshots) — required and must be non-empty (400 otherwise). IRREVERSIBLE: runs ONE restic forget --prune for the whole batch (one prune, not one per snapshot). Each id is still ownership- and (enterprise) environment-access-checked individually; ids that fail a check are skipped (reported in `skipped`), never forgotten — a per-snapshot skip does not fail the whole call.'),
+    },
+    async ({ destinationId, snapshotIds }) => {
+      return jsonResponse(await client.post('/api/backup/snapshots/batch-delete', { destinationId, snapshotIds }));
     }
   );
 
