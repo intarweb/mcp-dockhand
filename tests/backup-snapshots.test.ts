@@ -25,6 +25,13 @@
  *     stripped) before it leaves the process.
  *   src/routes/api/backup/instance/+server.ts              GET (no query, no path)
  *
+ * batch_delete_backup_snapshots (Dockhand 1.0.51, T6):
+ *   src/routes/api/backup/snapshots/batch-delete/+server.ts POST (body destinationId!:int,
+ *     snapshotIds!:array<string>) — both fields are typed optional in the handler's own
+ *     cast but are factually REQUIRED: 400 if destinationId is not a positive integer,
+ *     400 if snapshotIds is missing/empty. ONE restic forget --prune for the whole batch;
+ *     per-id ownership/env failures are skipped (reported in `skipped`), never 403d.
+ *
  * All five GET handlers above are job-polled (backed by src/lib/server/sse.ts
  * `jobResult()`/`createJobResponse()`): a caller sending `Accept: application/json` (and
  * NOT `text/event-stream`) gets the buffered `{result}` payload synchronously, per
@@ -92,10 +99,11 @@ function expectToolError(result: unknown, contains: string) {
 }
 
 describe('backup snapshot tools — registration', () => {
-  it('registers all eight operations', () => {
+  it('registers all nine operations', () => {
     const { handlers } = setup();
 
     expect([...handlers.keys()].sort()).toEqual([
+      'batch_delete_backup_snapshots',
       'browse_backup_snapshot',
       'delete_backup_snapshot',
       'diff_backup_snapshots',
@@ -662,5 +670,79 @@ describe('get_backup_instance_id', () => {
     client.get.mockRejectedValueOnce(new Error('ECONNREFUSED'));
     const result = await handlers.get('get_backup_instance_id')!({});
     expectToolError(result, 'ECONNREFUSED');
+  });
+});
+
+describe('batch_delete_backup_snapshots (T6)', () => {
+  it('happy path: POST /api/backup/snapshots/batch-delete with destinationId + snapshotIds', async () => {
+    const { client, result } = await call('batch_delete_backup_snapshots', {
+      destinationId: 3,
+      snapshotIds: ['1a2b3c4d', '5e6f7a8b'],
+    });
+    expect(client.post).toHaveBeenCalledWith('/api/backup/snapshots/batch-delete', {
+      destinationId: 3,
+      snapshotIds: ['1a2b3c4d', '5e6f7a8b'],
+    });
+    expect(jsonOut(result)).toEqual({ ok: true });
+  });
+
+  it('requires destinationId — the tool schema rejects a call missing it', () => {
+    const { schemas } = setup();
+    const schema = z.object(schemas.get('batch_delete_backup_snapshots')!);
+    const result = schema.safeParse({ snapshotIds: ['1a2b3c4d'] });
+    expect(result.success).toBe(false);
+  });
+
+  it('requires a NON-EMPTY snapshotIds — the tool schema rejects an empty array', () => {
+    const { schemas } = setup();
+    const schema = z.object(schemas.get('batch_delete_backup_snapshots')!);
+    const result = schema.safeParse({ destinationId: 3, snapshotIds: [] });
+    expect(result.success).toBe(false);
+  });
+
+  it('requires snapshotIds — the tool schema rejects a call missing it', () => {
+    const { schemas } = setup();
+    const schema = z.object(schemas.get('batch_delete_backup_snapshots')!);
+    const result = schema.safeParse({ destinationId: 3 });
+    expect(result.success).toBe(false);
+  });
+
+  it('GEGENVERSUCH: with both required fields present, the same schema accepts the call', () => {
+    const { schemas } = setup();
+    const schema = z.object(schemas.get('batch_delete_backup_snapshots')!);
+    const result = schema.safeParse({ destinationId: 3, snapshotIds: ['1a2b3c4d'] });
+    expect(result.success).toBe(true);
+  });
+
+  it('error path: backend 400 (invalid snapshot id) is a structured tool error', async () => {
+    const { handlers, client } = setup();
+    client.post.mockRejectedValueOnce(new Error('400 Invalid snapshot id'));
+    const result = await handlers.get('batch_delete_backup_snapshots')!({
+      destinationId: 3,
+      snapshotIds: ['not-valid'],
+    });
+    expectToolError(result, 'Invalid snapshot id');
+  });
+
+  it('network error propagates as a structured tool error', async () => {
+    const { handlers, client } = setup();
+    client.post.mockRejectedValueOnce(new Error('ECONNRESET'));
+    const result = await handlers.get('batch_delete_backup_snapshots')!({
+      destinationId: 3,
+      snapshotIds: ['1a2b3c4d'],
+    });
+    expectToolError(result, 'ECONNRESET');
+  });
+});
+
+describe('batch_delete_backup_snapshots destinationId validation (Codex review)', () => {
+  it('rejects zero, negative, and fractional destinationId', () => {
+    const { schemas } = setup();
+    const shape = z.object(schemas.get('batch_delete_backup_snapshots')!);
+    const ids = ['a'];
+    expect(shape.safeParse({ destinationId: 0, snapshotIds: ids }).success).toBe(false);
+    expect(shape.safeParse({ destinationId: -1, snapshotIds: ids }).success).toBe(false);
+    expect(shape.safeParse({ destinationId: 1.5, snapshotIds: ids }).success).toBe(false);
+    expect(shape.safeParse({ destinationId: 3, snapshotIds: ids }).success).toBe(true);
   });
 });

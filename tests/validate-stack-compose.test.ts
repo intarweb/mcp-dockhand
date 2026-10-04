@@ -16,6 +16,13 @@ import { registerStackTools } from '../src/tools/stacks.js';
  * handler source. It self-excludes the stack's own running containers/ports
  * from cross-stack collision checks; it applies ONLY when validating an
  * already-existing stack.
+ *
+ * providerKeys (Dockhand 1.0.51, T7) — re-ground-truthed against v1.0.46's own later
+ * `v1.0.51` revision of the same file: body-type `providerKeys?: string[]` (declared
+ * line 64, consumed line 85 via withProviderKeysAsSet/sanitizeProviderKeys). Names of
+ * secret-provider-backed env vars to treat as SET (no values sent/needed) so
+ * `docker compose config` does not report a spurious "VAR not set" for a var a bound
+ * secret provider would supply at deploy time.
  */
 
 type ToolHandler = (args: Record<string, unknown>) => Promise<unknown>;
@@ -75,6 +82,7 @@ describe('validate_stack_compose (#230)', () => {
       config: { disabled: ['LATEST_TAG'], severity: { LATEST_TAG: 'info' } },
       envVars: { TZ: 'Europe/Berlin' },
       existing: true,
+      providerKeys: ['DB_PASSWORD'],
     }));
 
     expect(client.post).toHaveBeenCalledTimes(1);
@@ -85,6 +93,7 @@ describe('validate_stack_compose (#230)', () => {
       config: { disabled: ['LATEST_TAG'], severity: { LATEST_TAG: 'info' } },
       envVars: { TZ: 'Europe/Berlin' },
       existing: true,
+      providerKeys: ['DB_PASSWORD'],
     });
     expect((params as Record<string, unknown>).env).toBe(7);
 
@@ -101,6 +110,22 @@ describe('validate_stack_compose (#230)', () => {
     expect(path).toBe('/api/stacks/new-stack/validate');
     expect(body).toEqual({ compose: 'services: {}\n' });
     expect((params as Record<string, unknown>).env).toBeUndefined();
+  });
+
+  it('T7 GEGENVERSUCH: providerKeys omitted is NOT sent as an undefined/empty key', async () => {
+    const { handler, client } = setup();
+    await handler({ name: 'new-stack', compose: 'services: {}\n' });
+
+    const [, body] = client.post.mock.calls[0]!;
+    expect(Object.keys(body as Record<string, unknown>)).not.toContain('providerKeys');
+  });
+
+  it('T7: providerKeys is forwarded as a real string array when given', async () => {
+    const { handler, client } = setup();
+    await handler({ name: 'new-stack', compose: 'services: {}\n', providerKeys: ['API_KEY', 'DB_PASSWORD'] });
+
+    const [, body] = client.post.mock.calls[0]!;
+    expect((body as Record<string, unknown>).providerKeys).toEqual(['API_KEY', 'DB_PASSWORD']);
   });
 
   it('path is percent-encoded for stack names with special characters', async () => {

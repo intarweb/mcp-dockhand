@@ -8,6 +8,12 @@
  *   src/routes/api/secret-providers/[id]/probe/+server.ts POST {selector?, refs?}
  *   src/routes/api/secret-providers/[id]/test/+server.ts  POST {config?}
  *   src/routes/api/secret-providers/test/+server.ts       POST {type!, config!}
+ *
+ * get_default_secret_provider / set_default_secret_provider (Dockhand 1.0.51, T5):
+ *   src/routes/api/secret-providers/default/+server.ts
+ *     GET -> {providerId:number|null}
+ *     PUT body {providerId:number|null} -> {providerId:number|null}; providerId null
+ *       (or the key omitted) clears the default.
  */
 
 import { describe, it, expect, vi } from 'vitest';
@@ -50,15 +56,17 @@ async function call(name: string, args: Record<string, unknown>) {
 }
 
 describe('secret-provider tools — request contracts', () => {
-  it('registers all eight operations', () => {
+  it('registers all ten operations', () => {
     const { handlers } = setup();
 
     expect([...handlers.keys()].sort()).toEqual([
       'create_secret_provider',
       'delete_secret_provider',
+      'get_default_secret_provider',
       'get_secret_provider',
       'list_secret_providers',
       'probe_secret_provider',
+      'set_default_secret_provider',
       'test_secret_provider',
       'test_secret_provider_config',
       'update_secret_provider',
@@ -121,6 +129,28 @@ describe('secret-provider tools — request contracts', () => {
 
     const deleteClient = await call('delete_secret_provider', { id: 4 });
     expect(deleteClient.delete).toHaveBeenCalledWith('/api/secret-providers/4');
+  });
+});
+
+describe('default secret provider (T5)', () => {
+  it('get_default_secret_provider takes no body', async () => {
+    const client = await call('get_default_secret_provider', {});
+    expect(client.get).toHaveBeenCalledWith('/api/secret-providers/default');
+  });
+
+  it('set_default_secret_provider sends the given providerId', async () => {
+    const client = await call('set_default_secret_provider', { providerId: 5 });
+    expect(client.put).toHaveBeenCalledWith('/api/secret-providers/default', { providerId: 5 });
+  });
+
+  it('GEGENVERSUCH: set_default_secret_provider sends providerId:null when omitted (clears the default)', async () => {
+    const client = await call('set_default_secret_provider', {});
+    expect(client.put).toHaveBeenCalledWith('/api/secret-providers/default', { providerId: null });
+  });
+
+  it('set_default_secret_provider sends providerId:null when explicitly passed null (clears the default)', async () => {
+    const client = await call('set_default_secret_provider', { providerId: null });
+    expect(client.put).toHaveBeenCalledWith('/api/secret-providers/default', { providerId: null });
   });
 });
 

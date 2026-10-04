@@ -200,6 +200,13 @@ const BACKUP_SNAPSHOT_DOWNLOAD_RETURNS_RAW_BYTES =
   'would bypass redaction) — use get_backup_snapshot_metadata for that path instead. For a ' +
   'redacted/inline text preview instead of raw bytes, use dump_backup_snapshot_file.';
 
+const DEPLOY_LOG_MAY_CONTAIN_SECRETS =
+  ' SECURITY: a deploy log is the raw captured output of `docker compose` and the stack\'s own ' +
+  'startup, so it can contain secrets that were printed to stdout/stderr and therefore survived ' +
+  'Dockhand redaction (environment dumps, connection strings, tokens echoed by an entrypoint). ' +
+  'The returned text lands in the tool call itself, and therefore in transcripts and logs. Treat ' +
+  'it as potentially secret-bearing and do not quote it wholesale.';
+
 export const TOOL_DESCRIPTION_SUFFIXES: Readonly<Record<string, string>> = {
   exec_container: EXEC_RETURNS_NO_OUTPUT,
   get_stack_env_raw: RETURNS_THE_FILE_VERBATIM,
@@ -216,4 +223,5 @@ export const TOOL_DESCRIPTION_SUFFIXES: Readonly<Record<string, string>> = {
   run_backup_restore: RESTORE_IN_PLACE_DESTRUCTIVE,
   dump_backup_snapshot_file: BACKUP_SNAPSHOT_DUMP_MAY_EXPOSE_VOLUME_SECRETS,
   download_backup_snapshot_file: BACKUP_SNAPSHOT_DOWNLOAD_RETURNS_RAW_BYTES,
+  get_stack_deploy_log: DEPLOY_LOG_MAY_CONTAIN_SECRETS,
 };

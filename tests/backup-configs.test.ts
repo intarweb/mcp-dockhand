@@ -326,9 +326,20 @@ describe('update_backup_config', () => {
 });
 
 describe('delete_backup_config', () => {
-  it('happy path: DELETE /api/backup/configs/{id}', async () => {
+  it('happy path: DELETE /api/backup/configs/{id}, deleteSnapshots omitted by default', async () => {
     const { client } = await call('delete_backup_config', { configId: 7 });
-    expect(client.delete).toHaveBeenCalledWith('/api/backup/configs/7');
+    expect(client.delete).toHaveBeenCalledWith('/api/backup/configs/7', { deleteSnapshots: undefined });
+  });
+
+  it('T7: deleteSnapshots:true is forwarded as the literal query string "true"', async () => {
+    // Dockhand 1.0.51. Handler: url.searchParams.get('deleteSnapshots') === 'true'.
+    const { client } = await call('delete_backup_config', { configId: 7, deleteSnapshots: true });
+    expect(client.delete).toHaveBeenCalledWith('/api/backup/configs/7', { deleteSnapshots: 'true' });
+  });
+
+  it('GEGENVERSUCH: deleteSnapshots:false is NOT forwarded as the literal string "true" (omitted instead)', async () => {
+    const { client } = await call('delete_backup_config', { configId: 7, deleteSnapshots: false });
+    expect(client.delete).toHaveBeenCalledWith('/api/backup/configs/7', { deleteSnapshots: undefined });
   });
 
   it('error path: backend 409 (backup running) is a structured tool error', async () => {

@@ -35,8 +35,11 @@ export function registerStackTools(server: McpServer, client: DockhandClient): v
       })).optional().describe('Environment variables'),
       rawEnvContent: z.string().optional().describe('Raw .env file content'),
       secretProviderId: z.number().nullable().optional().describe('Bind the stack to a configured secret provider (id from list_secret_providers); its secrets are injected at deploy. Pass null to leave it unbound. Dockhand 1.0.42+'),
+      pull: z.boolean().optional().describe('Pull newer images before deploying when start:true (default: false — see deploy_stack, whose default is pull:true; this endpoint does NOT default to pulling). Ignored when start:false. Dockhand 1.0.51+'),
+      build: z.boolean().optional().describe('Build services that declare a `build:` section when start:true (default: false). Ignored when start:false. Dockhand 1.0.51+'),
+      forceRecreate: z.boolean().optional().describe('Recreate containers even when their resolved configuration is unchanged, when start:true (default: false). Ignored when start:false. Dockhand 1.0.51+'),
     },
-    async ({ environmentId, name, compose, composePath, envPath, start, envVars, rawEnvContent, secretProviderId }) => {
+    async ({ environmentId, name, compose, composePath, envPath, start, envVars, rawEnvContent, secretProviderId, pull, build, forceRecreate }) => {
       const body: Record<string, unknown> = { name, compose };
       if (composePath !== undefined) body.composePath = composePath;
       if (envPath !== undefined) body.envPath = envPath;
@@ -44,6 +47,9 @@ export function registerStackTools(server: McpServer, client: DockhandClient): v
       if (envVars) body.envVars = envVars;
       if (rawEnvContent) body.rawEnvContent = rawEnvContent;
       if (secretProviderId !== undefined) body.secretProviderId = secretProviderId;
+      if (pull !== undefined) body.pull = pull;
+      if (build !== undefined) body.build = build;
+      if (forceRecreate !== undefined) body.forceRecreate = forceRecreate;
 
       return jsonResponse(await client.postSSE('/api/stacks', body, { env: environmentId }));
     }
@@ -134,11 +140,17 @@ export function registerStackTools(server: McpServer, client: DockhandClient): v
       content: z.string().describe('New compose file content'),
       restart: z.boolean().optional().describe('Redeploy after update (default: false)'),
       secretProviderId: z.number().nullable().optional().describe('Bind the stack to a configured secret provider (id from list_secret_providers); its secrets are injected at deploy. Pass null to CLEAR an existing binding; omit to leave it unchanged. Dockhand 1.0.42+'),
+      pull: z.boolean().optional().describe('Pull newer images before redeploying — only applied when restart:true (default: false). Dockhand 1.0.51+'),
+      build: z.boolean().optional().describe('Build services that declare a `build:` section — only applied when restart:true (default: false). Dockhand 1.0.51+'),
+      forceRecreate: z.boolean().optional().describe('Recreate containers even when their resolved configuration is unchanged — only applied when restart:true (default: TRUE when omitted here — see create_stack, which defaults this to false; env var changes need --force-recreate to take effect). Dockhand 1.0.51+'),
     },
-    async ({ environmentId, name, content, restart, secretProviderId }) => {
+    async ({ environmentId, name, content, restart, secretProviderId, pull, build, forceRecreate }) => {
       const body: Record<string, unknown> = { content };
       if (restart !== undefined) body.restart = restart;
       if (secretProviderId !== undefined) body.secretProviderId = secretProviderId;
+      if (pull !== undefined) body.pull = pull;
+      if (build !== undefined) body.build = build;
+      if (forceRecreate !== undefined) body.forceRecreate = forceRecreate;
 
       if (restart) {
         return jsonResponse(await client.putSSE(`/api/stacks/${encodePath(name)}/compose`, body, { env: environmentId }));
@@ -870,13 +882,75 @@ export function registerStackTools(server: McpServer, client: DockhandClient): v
       // brand-new stack, where a name/port clash with a same-named running
       // stack must still be reported.
       existing: z.boolean().optional().describe('Set true when validating an EXISTING stack\'s compose (self-excludes its own containers from collision checks) — undocumented handler-only field, ground-truthed against v1.0.46 source'),
+      // Dockhand 1.0.51 (T7). Handler body-type `providerKeys?: string[]` (ground-truthed
+      // against v1.0.51 src/routes/api/stacks/[name]/validate/+server.ts, declared line 64,
+      // used line 85 via withProviderKeysAsSet/sanitizeProviderKeys). A bound secret
+      // provider supplies more `${VAR}` keys at deploy time than `envVars` alone carries —
+      // pass the names the editor probed (the ones behind its IN VAULT markers) so
+      // `docker compose config` treats them as set, without transmitting their values (no
+      // value is needed for a presence check, and none is requested here).
+      providerKeys: z.array(z.string()).optional().describe('Secret-provider-backed env var NAMES to treat as set (no values — a provider-bound stack supplies these at deploy time; omit if the stack is not bound to a secret provider)'),
     },
-    async ({ environmentId, name, compose, config, envVars, existing }) => {
+    async ({ environmentId, name, compose, config, envVars, existing, providerKeys }) => {
       const body: Record<string, unknown> = { compose };
       if (config !== undefined) body.config = config;
       if (envVars !== undefined) body.envVars = envVars;
       if (existing !== undefined) body.existing = existing;
+      if (providerKeys !== undefined) body.providerKeys = providerKeys;
       return jsonResponse(await client.post(`/api/stacks/${encodePath(name)}/validate`, body, { env: environmentId }));
+    }
+  );
+
+  // Deploy history (Dockhand 1.0.51, Finsys/dockhand #1499). Ground-truthed against
+  // v1.0.51 src/routes/api/stacks/[name]/deploys/+server.ts,
+  // src/routes/api/stacks/[name]/deploys/[runId]/+server.ts (GET+DELETE) and
+  // src/routes/api/stacks/[name]/deploys/[runId]/log/+server.ts.
+  //
+  // Only list_stack_deploys takes an `env` query param — the other three derive the
+  // environment from the loaded run itself (loadOwnedDeployRun), per the handlers'
+  // own doc comments; they take NO env query at all. `environmentId` is `.optional()`
+  // on list_stack_deploys because the handler accepts it OMITTED (and the literal
+  // string "null") to mean the local/default environment — buildUrl() already drops
+  // an `undefined` env value from the query string, which produces exactly that
+  // omitted shape (no need to pass the literal "null" ourselves).
+  registerTool(server, 'list_stack_deploys',
+    {
+      environmentId: z.number().optional().describe('Environment ID (from GET /api/environments). Omit for the local/default environment (deploys triggered without an explicit env — the normal shape on a single-environment install).'),
+      name: z.string().describe('Stack name'),
+    },
+    async ({ environmentId, name }) => {
+      return jsonResponse(await client.get(`/api/stacks/${encodePath(name)}/deploys`, { env: environmentId }));
+    }
+  );
+
+  registerTool(server, 'get_stack_deploy',
+    {
+      name: z.string().describe('Stack name'),
+      runId: z.number().int().describe('Deploy run ID (from list_stack_deploys) — the environment is derived from the run itself, no environmentId param here'),
+    },
+    async ({ name, runId }) => {
+      return jsonResponse(await client.get(`/api/stacks/${encodePath(name)}/deploys/${encodePath(runId)}`));
+    }
+  );
+
+  registerTool(server, 'delete_stack_deploy',
+    {
+      name: z.string().describe('Stack name'),
+      runId: z.number().int().describe('Deploy run ID (from list_stack_deploys) — the environment is derived from the run itself, no environmentId param here'),
+    },
+    async ({ name, runId }) => {
+      return jsonResponse(await client.delete(`/api/stacks/${encodePath(name)}/deploys/${encodePath(runId)}`));
+    }
+  );
+
+  registerTool(server, 'get_stack_deploy_log',
+    {
+      name: z.string().describe('Stack name'),
+      runId: z.number().int().describe('Deploy run ID (from list_stack_deploys) — the environment is derived from the run itself, no environmentId param here'),
+    },
+    async ({ name, runId }) => {
+      const data = await client.get(`/api/stacks/${encodePath(name)}/deploys/${encodePath(runId)}/log`);
+      return textResponse(data);
     }
   );
 }

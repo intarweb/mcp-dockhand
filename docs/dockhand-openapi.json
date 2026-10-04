@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Dockhand API",
-    "version": "1.0.46",
+    "version": "1.0.51",
     "description": "Auto-generated from src/routes/**/+server.ts by scripts/generate-openapi.ts. Path, HTTP method, tag, and auth requirement are derived automatically from the route tree and hooks.server.ts PUBLIC_PATHS. Parameters, response status codes, and request body fields are additionally auto-detected from each handler’s own source (query params via url.searchParams, status codes via status:/error(), body fields via destructuring) — adding a new endpoint therefore requires ZERO manual spec edits to show up with real params/responses. An optional, additive `@openapi` JSDoc annotation on a handler replaces the generic auto-descriptions with hand-written summaries, exact types, and examples."
   },
   "servers": [
@@ -37,6 +37,9 @@
     },
     {
       "name": "container-icons"
+    },
+    {
+      "name": "container-tags"
     },
     {
       "name": "containers"
@@ -132,10 +135,16 @@
       "name": "settings"
     },
     {
+      "name": "stack-tags"
+    },
+    {
       "name": "stacks"
     },
     {
       "name": "system"
+    },
+    {
+      "name": "tags"
     },
     {
       "name": "templates"
@@ -1596,6 +1605,9 @@
                   "properties": {
                     "success": {
                       "type": "boolean"
+                    },
+                    "logoutUrl": {
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -1612,7 +1624,8 @@
             "description": "Unexpected error while destroying the session"
           }
         },
-        "security": []
+        "security": [],
+        "description": "When the session came from an OIDC provider that publishes an end-session endpoint, the response carries a logoutUrl the caller should navigate to so the provider ends its own session too. Never present when the instance sets OIDC_END_SESSION=false."
       }
     },
     "/api/auth/oidc": {
@@ -2123,16 +2136,10 @@
             "description": "Successful response"
           },
           "302": {
-            "description": "Redirect to the IdP's authorization URL"
+            "description": "Redirect to the IdP's authorization URL, or back to /login?local=1&error=... when the provider is unknown, disabled or unreachable"
           },
           "400": {
             "description": "Authentication is not enabled, or the configuration id is invalid"
-          },
-          "404": {
-            "description": "OIDC provider not found or disabled"
-          },
-          "500": {
-            "description": "Failed to build the authorization URL / initiate SSO"
           }
         },
         "security": []
@@ -2308,7 +2315,7 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": "Successful response",
+            "description": "autoLoginUrl is present only when OIDC_AUTOLOGIN is set and exactly one OIDC provider is enabled; the login page then goes straight there",
             "content": {
               "application/json": {
                 "schema": {
@@ -2340,6 +2347,9 @@
                       }
                     },
                     "defaultProvider": {
+                      "type": "string"
+                    },
+                    "autoLoginUrl": {
                       "type": "string"
                     }
                   }
@@ -2835,6 +2845,9 @@
               }
             }
           },
+          "403": {
+            "description": "Permission denied (needs schedules:view, and access to the environment)"
+          },
           "500": {
             "description": "Failed to get auto-update settings"
           }
@@ -2911,6 +2924,9 @@
                 }
               }
             }
+          },
+          "403": {
+            "description": "Permission denied, or no access to the environment"
           },
           "500": {
             "description": "Failed to get auto-update setting"
@@ -2994,6 +3010,9 @@
                 }
               }
             }
+          },
+          "403": {
+            "description": "Permission denied, or no access to the environment"
           },
           "500": {
             "description": "Failed to save auto-update setting"
@@ -3087,6 +3106,9 @@
                 }
               }
             }
+          },
+          "403": {
+            "description": "Permission denied, or no access to the environment"
           },
           "500": {
             "description": "Failed to delete auto-update setting"
@@ -3425,7 +3447,7 @@
         "tags": [
           "backup"
         ],
-        "summary": "Delete a backup configuration and unregister its schedule",
+        "summary": "Delete a backup configuration and unregister its schedule, optionally forgetting its snapshots too",
         "parameters": [
           {
             "name": "id",
@@ -3435,11 +3457,20 @@
               "type": "integer"
             },
             "description": "Backup configuration id (from GET /api/backup/configs)"
+          },
+          {
+            "name": "deleteSnapshots",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "Also forget and prune this config's snapshots (default false; snapshots survive so a restore is still possible)"
           }
         ],
         "responses": {
           "200": {
-            "description": "Returns { success: true } once the configuration is deleted"
+            "description": "Returns { success: true }, plus { snapshots: { deleted, skipped, error? } } when deleteSnapshots=true"
           },
           "409": {
             "description": "A backup is currently running for this config — stop it before deleting"
@@ -3453,7 +3484,7 @@
             "bearerAuth": []
           }
         ],
-        "description": "Permission (\"backups:manage\") and environment-access denials (403) and not-found (404) are produced by the shared route guards."
+        "description": "Permission (\"backups:manage\") and environment-access denials (403) and not-found (404) are produced by the shared route guards. With deleteSnapshots=true the config's snapshots are forgotten and pruned (best-effort; reported in the response, never blocks the delete)."
       }
     },
     "/api/backup/configs/{id}/run": {
@@ -3603,6 +3634,12 @@
                   "flags": {
                     "type": "string"
                   },
+                  "backupFlags": {
+                    "type": "string"
+                  },
+                  "restoreFlags": {
+                    "type": "string"
+                  },
                   "hostPath": {
                     "type": "string"
                   },
@@ -3739,6 +3776,12 @@
                     "properties": {}
                   },
                   "flags": {
+                    "type": "string"
+                  },
+                  "backupFlags": {
+                    "type": "string"
+                  },
+                  "restoreFlags": {
                     "type": "string"
                   },
                   "hostPath": {
@@ -4264,6 +4307,12 @@
                       "type": "object",
                       "properties": {}
                     }
+                  },
+                  "restoreSecrets": {
+                    "type": "boolean"
+                  },
+                  "skipStackFiles": {
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -4331,6 +4380,37 @@
                   },
                   "targetEnvId": {
                     "type": "integer"
+                  },
+                  "environmentId": {
+                    "type": "integer"
+                  },
+                  "mode": {
+                    "type": "string"
+                  },
+                  "targetType": {
+                    "type": "string"
+                  },
+                  "targetName": {
+                    "type": "string"
+                  },
+                  "targetPath": {
+                    "type": "string"
+                  },
+                  "volumeDestinations": {
+                    "type": "object",
+                    "properties": {}
+                  },
+                  "volumes": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "skipStackFiles": {
+                    "type": "boolean"
+                  },
+                  "mergeStackFiles": {
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -4342,7 +4422,18 @@
                 "destinationId": 0,
                 "snapshotId": "string",
                 "includeTargets": true,
-                "targetEnvId": 0
+                "targetEnvId": 0,
+                "environmentId": 0,
+                "mode": "string",
+                "targetType": "string",
+                "targetName": "string",
+                "targetPath": "string",
+                "volumeDestinations": {},
+                "volumes": [
+                  "string"
+                ],
+                "skipStackFiles": true,
+                "mergeStackFiles": true
               }
             }
           }
@@ -4717,6 +4808,68 @@
           }
         ],
         "description": "Job-polled so a proxy can't abort the restic dump at ~15s. The layout is redacted (stack secrets and container Config.Env/Labels stripped) before it leaves the server."
+      }
+    },
+    "/api/backup/snapshots/batch-delete": {
+      "post": {
+        "operationId": "post_api_backup_snapshots_batch-delete",
+        "tags": [
+          "backup"
+        ],
+        "summary": "Forget and prune several snapshots from one destination in a single restic forget --prune, with per-snapshot ownership and environment access gates",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Returns { success: true, deleted: string[], skipped: string[] } - deleted were forgotten, skipped were not owned or not accessible"
+          },
+          "400": {
+            "description": "Missing/invalid destinationId, empty snapshotIds, or an invalid snapshot id"
+          },
+          "500": {
+            "description": "Failed to forget the snapshots (restic error)"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "Permission denial (403, \"backups:manage\") is produced by the shared requireBackups route guard. Per-snapshot ownership/environment failures are skipped (returned in `skipped`), not 403d.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "destinationId": {
+                    "type": "integer"
+                  },
+                  "snapshotIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "destinationId",
+                  "snapshotIds"
+                ]
+              },
+              "example": {
+                "destinationId": 3,
+                "snapshotIds": [
+                  "1a2b3c4d",
+                  "5e6f7a8b"
+                ]
+              }
+            }
+          }
+        }
       }
     },
     "/api/backup/snapshots/diff": {
@@ -6244,6 +6397,206 @@
         ]
       }
     },
+    "/api/container-tags": {
+      "get": {
+        "operationId": "get_api_container-tags",
+        "tags": [
+          "container-tags"
+        ],
+        "summary": "List all container tag assignments for an environment as a name -> tagIds map",
+        "parameters": [
+          {
+            "name": "env",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Environment id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A JSON object mapping container name to its array of tag ids"
+          },
+          "403": {
+            "description": "Permission denied (needs containers:view)"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "Returns every container that has tags assigned in the given environment, so the containers list can render and filter by tag in one request instead of one lookup per row."
+      }
+    },
+    "/api/container-tags/{name}": {
+      "get": {
+        "operationId": "get_api_container-tags_name",
+        "tags": [
+          "container-tags"
+        ],
+        "summary": "Get the tag ids assigned to one container (by name)",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Container name"
+          },
+          {
+            "name": "env",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Environment id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "tagIds": {
+                      "type": "array",
+                      "items": {
+                        "type": "integer"
+                      }
+                    }
+                  },
+                  "required": [
+                    "tagIds"
+                  ]
+                },
+                "example": {
+                  "tagIds": [
+                    3,
+                    7
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission denied (needs containers:view)"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "put": {
+        "operationId": "put_api_container-tags_name",
+        "tags": [
+          "container-tags"
+        ],
+        "summary": "Replace the tag ids assigned to one container (by name)",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Container name"
+          },
+          {
+            "name": "env",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Environment id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "tagIds": {
+                      "type": "array",
+                      "items": {
+                        "type": "integer"
+                      }
+                    }
+                  },
+                  "required": [
+                    "tagIds"
+                  ]
+                },
+                "example": {
+                  "tagIds": [
+                    3,
+                    7
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission denied (needs containers:edit)"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tagIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer"
+                    }
+                  }
+                },
+                "required": [
+                  "tagIds"
+                ]
+              },
+              "example": {
+                "tagIds": [
+                  3,
+                  7
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/containers": {
       "get": {
         "operationId": "get_api_containers",
@@ -6515,11 +6868,11 @@
           {
             "name": "env",
             "in": "query",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "integer"
             },
-            "description": "The target environment ID (omit for the local/default Docker host) (from GET /api/environments)"
+            "description": "The target environment ID the container lives in (from GET /api/environments)"
           }
         ],
         "responses": {
@@ -6564,11 +6917,11 @@
           {
             "name": "env",
             "in": "query",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "integer"
             },
-            "description": "The target environment ID (omit for the local/default Docker host) (from GET /api/environments)"
+            "description": "The target environment ID the container lives in (from GET /api/environments)"
           },
           {
             "name": "force",
@@ -6642,11 +6995,11 @@
           {
             "name": "env",
             "in": "query",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "integer"
             },
-            "description": "The target environment ID (omit for the local/default Docker host) (from GET /api/environments)"
+            "description": "The target environment ID the container lives in (from GET /api/environments)"
           }
         ],
         "responses": {
@@ -6717,11 +7070,11 @@
           {
             "name": "envId",
             "in": "query",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "integer"
             },
-            "description": "The target environment ID (omit for the local/default Docker host) (from GET /api/environments)"
+            "description": "The target environment ID the container lives in (from GET /api/environments)"
           }
         ],
         "responses": {
@@ -6810,6 +7163,123 @@
         }
       }
     },
+    "/api/containers/{id}/exec/run": {
+      "post": {
+        "operationId": "post_api_containers_id_exec_run",
+        "tags": [
+          "containers"
+        ],
+        "summary": "Run a finite command in a container and wait for the result, returning stdout, stderr and the exit code (a non-interactive alternative to the terminal exec endpoint). Intended for short commands - the request is bounded by a ~30s ceiling on remote (Hawser/TCP) environments; use the interactive terminal for long-running work.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Container ID or name (from GET /api/containers)"
+          },
+          {
+            "name": "envId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "The target environment ID the container lives in (from GET /api/environments)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "stdout": {
+                      "type": "string"
+                    },
+                    "stderr": {
+                      "type": "string"
+                    },
+                    "exitCode": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "stdout",
+                    "stderr",
+                    "exitCode"
+                  ]
+                },
+                "example": {
+                  "stdout": "string",
+                  "stderr": "string",
+                  "exitCode": 0
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing or invalid cmd (must be a non-empty array of strings)"
+          },
+          "401": {
+            "description": "Not authenticated"
+          },
+          "403": {
+            "description": "Permission denied"
+          },
+          "500": {
+            "description": "Failed to run the command"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "cmd": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "user": {
+                    "type": "string"
+                  },
+                  "workingDir": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "cmd"
+                ]
+              },
+              "example": {
+                "cmd": [
+                  "sh",
+                  "-c",
+                  "echo hi && exit 3"
+                ],
+                "workingDir": "/app"
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/containers/{id}/files": {
       "get": {
         "operationId": "get_api_containers_id_files",
@@ -6830,11 +7300,11 @@
           {
             "name": "env",
             "in": "query",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "integer"
             },
-            "description": "The target environment ID (omit for the local/default Docker host) (from GET /api/environments)"
+            "description": "The target environment ID the container lives in (from GET /api/environments)"
           },
           {
             "name": "path",
@@ -6899,11 +7369,11 @@
           {
             "name": "env",
             "in": "query",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "integer"
             },
-            "description": "The target environment ID (omit for the local/default Docker host) (from GET /api/environments)"
+            "description": "The target environment ID the container lives in (from GET /api/environments)"
           }
         ],
         "responses": {
@@ -6996,6 +7466,123 @@
         }
       }
     },
+    "/api/containers/{id}/files/chown": {
+      "post": {
+        "operationId": "post_api_containers_id_files_chown",
+        "tags": [
+          "containers"
+        ],
+        "summary": "Change the owner (and optional group) of a file or directory inside a container (requires the 'exec' permission)",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Container ID or name (from GET /api/containers)"
+          },
+          {
+            "name": "env",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "The target environment ID the container lives in (from GET /api/environments)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "path": {
+                      "type": "string"
+                    },
+                    "owner": {
+                      "type": "string"
+                    },
+                    "recursive": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "path",
+                    "owner",
+                    "recursive"
+                  ]
+                },
+                "example": {
+                  "success": true,
+                  "path": "/app/data",
+                  "owner": "1000:1000",
+                  "recursive": true
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Path or owner missing, an invalid owner spec, or the container is not running"
+          },
+          "403": {
+            "description": "Permission denied, read-only file system, or operation not permitted"
+          },
+          "404": {
+            "description": "Path not found"
+          },
+          "500": {
+            "description": "Failed to change ownership"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string"
+                  },
+                  "owner": {
+                    "type": "string"
+                  },
+                  "recursive": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "path",
+                  "owner"
+                ]
+              },
+              "example": {
+                "path": "/app/data",
+                "owner": "1000:1000",
+                "recursive": true
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/containers/{id}/files/content": {
       "get": {
         "operationId": "get_api_containers_id_files_content",
@@ -7016,11 +7603,11 @@
           {
             "name": "env",
             "in": "query",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "integer"
             },
-            "description": "The target environment ID (omit for the local/default Docker host) (from GET /api/environments)"
+            "description": "The target environment ID the container lives in (from GET /api/environments)"
           },
           {
             "name": "path",
@@ -7103,11 +7690,11 @@
           {
             "name": "env",
             "in": "query",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "integer"
             },
-            "description": "The target environment ID (omit for the local/default Docker host) (from GET /api/environments)"
+            "description": "The target environment ID the container lives in (from GET /api/environments)"
           },
           {
             "name": "path",
@@ -7216,11 +7803,11 @@
           {
             "name": "env",
             "in": "query",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "integer"
             },
-            "description": "The target environment ID (omit for the local/default Docker host) (from GET /api/environments)"
+            "description": "The target environment ID the container lives in (from GET /api/environments)"
           }
         ],
         "responses": {
@@ -7239,6 +7826,9 @@
                     },
                     "type": {
                       "type": "string"
+                    },
+                    "owner": {
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -7250,7 +7840,8 @@
                 "example": {
                   "success": true,
                   "path": "/app/data",
-                  "type": "directory"
+                  "type": "directory",
+                  "owner": "1000:1000"
                 }
               }
             }
@@ -7291,6 +7882,9 @@
                   },
                   "type": {
                     "type": "string"
+                  },
+                  "owner": {
+                    "type": "string"
                   }
                 },
                 "required": [
@@ -7300,7 +7894,8 @@
               },
               "example": {
                 "path": "/app/data",
-                "type": "directory"
+                "type": "directory",
+                "owner": "1000:1000"
               }
             }
           }
@@ -7327,11 +7922,11 @@
           {
             "name": "env",
             "in": "query",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "integer"
             },
-            "description": "The target environment ID (omit for the local/default Docker host) (from GET /api/environments)"
+            "description": "The target environment ID the container lives in (from GET /api/environments)"
           },
           {
             "name": "path",
@@ -7413,11 +8008,11 @@
           {
             "name": "env",
             "in": "query",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "integer"
             },
-            "description": "The target environment ID (omit for the local/default Docker host) (from GET /api/environments)"
+            "description": "The target environment ID the container lives in (from GET /api/environments)"
           },
           {
             "name": "path",
@@ -7485,11 +8080,11 @@
           {
             "name": "env",
             "in": "query",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "integer"
             },
-            "description": "The target environment ID (omit for the local/default Docker host) (from GET /api/environments)"
+            "description": "The target environment ID the container lives in (from GET /api/environments)"
           }
         ],
         "responses": {
@@ -7596,11 +8191,11 @@
           {
             "name": "env",
             "in": "query",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "integer"
             },
-            "description": "The target environment ID (omit for the local/default Docker host) (from GET /api/environments)"
+            "description": "The target environment ID the container lives in (from GET /api/environments)"
           },
           {
             "name": "path",
@@ -7679,18 +8274,11 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "files": {
-                    "type": "array",
-                    "items": {
-                      "type": "string",
-                      "format": "binary"
-                    },
-                    "description": "One or more files to write into the target directory"
+                  "owner": {
+                    "type": "string",
+                    "description": "Optional owner (\"user\", \"user:group\", \"uid\" or \"uid:gid\") to chown the uploaded files to; defaults to the container's configured user"
                   }
-                },
-                "required": [
-                  "files"
-                ]
+                }
               }
             }
           }
@@ -7717,11 +8305,11 @@
           {
             "name": "env",
             "in": "query",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "integer"
             },
-            "description": "The target environment ID (omit for the local/default Docker host) (from GET /api/environments)"
+            "description": "The target environment ID the container lives in (from GET /api/environments)"
           }
         ],
         "responses": {
@@ -7765,11 +8353,11 @@
           {
             "name": "env",
             "in": "query",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "integer"
             },
-            "description": "The target environment ID (omit for the local/default Docker host) (from GET /api/environments)"
+            "description": "The target environment ID the container lives in (from GET /api/environments)"
           },
           {
             "name": "tail",
@@ -7858,11 +8446,11 @@
           {
             "name": "env",
             "in": "query",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "integer"
             },
-            "description": "The target environment ID (omit for the local/default Docker host) (from GET /api/environments)"
+            "description": "The target environment ID the container lives in (from GET /api/environments)"
           },
           {
             "name": "tail",
@@ -7931,11 +8519,11 @@
           {
             "name": "env",
             "in": "query",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "integer"
             },
-            "description": "The target environment ID (omit for the local/default Docker host) (from GET /api/environments)"
+            "description": "The target environment ID the container lives in (from GET /api/environments)"
           }
         ],
         "responses": {
@@ -7997,11 +8585,11 @@
           {
             "name": "env",
             "in": "query",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "integer"
             },
-            "description": "The target environment ID (omit for the local/default Docker host) (from GET /api/environments)"
+            "description": "The target environment ID the container lives in (from GET /api/environments)"
           }
         ],
         "responses": {
@@ -8090,11 +8678,11 @@
           {
             "name": "env",
             "in": "query",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "integer"
             },
-            "description": "The target environment ID (omit for the local/default Docker host) (from GET /api/environments)"
+            "description": "The target environment ID the container lives in (from GET /api/environments)"
           }
         ],
         "responses": {
@@ -8159,11 +8747,11 @@
           {
             "name": "env",
             "in": "query",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "integer"
             },
-            "description": "The target environment ID (omit for the local/default Docker host) (from GET /api/environments)"
+            "description": "The target environment ID the container lives in (from GET /api/environments)"
           }
         ],
         "responses": {
@@ -8267,11 +8855,11 @@
           {
             "name": "env",
             "in": "query",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "integer"
             },
-            "description": "The target environment ID (omit for the local/default Docker host) (from GET /api/environments)"
+            "description": "The target environment ID the container lives in (from GET /api/environments)"
           }
         ],
         "responses": {
@@ -8336,11 +8924,11 @@
           {
             "name": "env",
             "in": "query",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "integer"
             },
-            "description": "The target environment ID (omit for the local/default Docker host) (from GET /api/environments)"
+            "description": "The target environment ID the container lives in (from GET /api/environments)"
           }
         ],
         "responses": {
@@ -8455,11 +9043,11 @@
           {
             "name": "env",
             "in": "query",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "integer"
             },
-            "description": "The target environment ID (omit for the local/default Docker host) (from GET /api/environments)"
+            "description": "The target environment ID the container lives in (from GET /api/environments)"
           }
         ],
         "responses": {
@@ -8524,11 +9112,11 @@
           {
             "name": "env",
             "in": "query",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "integer"
             },
-            "description": "The target environment ID (omit for the local/default Docker host) (from GET /api/environments)"
+            "description": "The target environment ID the container lives in (from GET /api/environments)"
           }
         ],
         "responses": {
@@ -8616,11 +9204,11 @@
           {
             "name": "env",
             "in": "query",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "integer"
             },
-            "description": "The target environment ID (omit for the local/default Docker host) (from GET /api/environments)"
+            "description": "The target environment ID the container lives in (from GET /api/environments)"
           }
         ],
         "responses": {
@@ -8682,11 +9270,11 @@
           {
             "name": "env",
             "in": "query",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "integer"
             },
-            "description": "The target environment ID (omit for the local/default Docker host) (from GET /api/environments)"
+            "description": "The target environment ID the container lives in (from GET /api/environments)"
           }
         ],
         "responses": {
@@ -8963,11 +9551,11 @@
           {
             "name": "env",
             "in": "query",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "integer"
             },
-            "description": "The target environment ID (omit for the local/default Docker host) (from GET /api/environments)"
+            "description": "The target environment ID the container lives in (from GET /api/environments)"
           },
           {
             "name": "versions",
@@ -9076,11 +9664,11 @@
           {
             "name": "env",
             "in": "query",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "integer"
             },
-            "description": "The target environment ID (omit for the local/default Docker host) (from GET /api/environments)"
+            "description": "The target environment ID the container lives in (from GET /api/environments)"
           }
         ],
         "responses": {
@@ -9223,11 +9811,11 @@
           {
             "name": "env",
             "in": "query",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "integer"
             },
-            "description": "The target environment ID (omit for the local/default Docker host) (from GET /api/environments)"
+            "description": "The target environment ID the container lives in (from GET /api/environments)"
           }
         ],
         "responses": {
@@ -9293,11 +9881,11 @@
           {
             "name": "env",
             "in": "query",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "integer"
             },
-            "description": "The target environment ID (omit for the local/default Docker host) (from GET /api/environments)"
+            "description": "The target environment ID the container lives in (from GET /api/environments)"
           }
         ],
         "responses": {
@@ -9386,11 +9974,11 @@
           {
             "name": "env",
             "in": "query",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "integer"
             },
-            "description": "The target environment ID (omit for the local/default Docker host) (from GET /api/environments)"
+            "description": "The target environment ID the container lives in (from GET /api/environments)"
           }
         ],
         "responses": {
@@ -9461,7 +10049,8 @@
                             "type": "boolean"
                           },
                           "newerVersion": {
-                            "type": "string"
+                            "type": "object",
+                            "properties": {}
                           }
                         },
                         "required": [
@@ -9488,7 +10077,7 @@
                       "currentImage": "string",
                       "checkedAt": "string",
                       "hasImageUpdate": true,
-                      "newerVersion": "string"
+                      "newerVersion": {}
                     }
                   ]
                 }
@@ -9593,11 +10182,11 @@
           {
             "name": "env",
             "in": "query",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "integer"
             },
-            "description": "The target environment ID (omit for the local/default Docker host) (from GET /api/environments)"
+            "description": "The target environment ID the container lives in (from GET /api/environments)"
           }
         ],
         "responses": {
@@ -9632,11 +10221,11 @@
           {
             "name": "env",
             "in": "query",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "integer"
             },
-            "description": "The target environment ID (omit for the local/default Docker host) (from GET /api/environments)"
+            "description": "The target environment ID the container lives in (from GET /api/environments)"
           },
           {
             "name": "debug",
@@ -10016,7 +10605,8 @@
                       "type": "string"
                     },
                     "uptime": {
-                      "type": "string"
+                      "type": "object",
+                      "properties": {}
                     },
                     "gcForced": {
                       "type": "boolean"
@@ -10025,19 +10615,24 @@
                       "type": "boolean"
                     },
                     "process": {
-                      "type": "string"
+                      "type": "object",
+                      "properties": {}
                     },
                     "growth": {
-                      "type": "string"
+                      "type": "object",
+                      "properties": {}
                     },
                     "v8Heap": {
-                      "type": "string"
+                      "type": "object",
+                      "properties": {}
                     },
                     "system": {
-                      "type": "string"
+                      "type": "object",
+                      "properties": {}
                     },
                     "rssTracker": {
-                      "type": "string"
+                      "type": "object",
+                      "properties": {}
                     }
                   },
                   "required": [
@@ -10131,16 +10726,26 @@
                 "example": [
                   {
                     "name": "anchore/grype",
-                    "version": "v0.110.0",
+                    "version": "v0.119.0",
                     "license": "Apache-2.0",
                     "repository": "https://github.com/anchore/grype"
                   }
                 ]
               }
             }
+          },
+          "401": {
+            "description": "Not authenticated"
           }
         },
-        "security": []
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ]
       }
     },
     "/api/docs": {
@@ -10732,6 +11337,12 @@
                     },
                     "thresholdGb": {
                       "type": "integer"
+                    },
+                    "percentageSupported": {
+                      "type": "boolean"
+                    },
+                    "storageDriver": {
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -10745,7 +11356,9 @@
                   "enabled": true,
                   "mode": "percentage",
                   "threshold": 80,
-                  "thresholdGb": 50
+                  "thresholdGb": 50,
+                  "percentageSupported": false,
+                  "storageDriver": "overlay2"
                 }
               }
             }
@@ -10767,7 +11380,8 @@
           {
             "bearerAuth": []
           }
-        ]
+        ],
+        "description": "percentageSupported and storageDriver are null when the host could not be reached, which means unknown rather than unsupported - only false says the host reports no storage pool size and so percentage warnings would never fire there."
       },
       "post": {
         "operationId": "post_api_environments_id_disk-warning",
@@ -12393,6 +13007,9 @@
                 }
               }
             }
+          },
+          "403": {
+            "description": "Permission denied (needs environments:create or environments:edit)"
           }
         },
         "security": [
@@ -12438,6 +13055,12 @@
                         },
                         "name": {
                           "type": "string"
+                        },
+                        "memoryLimitSupported": {
+                          "type": "boolean"
+                        },
+                        "showMemoryWarning": {
+                          "type": "boolean"
                         }
                       }
                     },
@@ -12456,7 +13079,9 @@
                     "serverVersion": "string",
                     "containers": 0,
                     "images": 0,
-                    "name": "string"
+                    "name": "string",
+                    "memoryLimitSupported": true,
+                    "showMemoryWarning": true
                   },
                   "hawser": {}
                 }
@@ -12554,6 +13179,9 @@
         "responses": {
           "200": {
             "description": "text/event-stream SSE stream (\"connected\", \"heartbeat\" every 5s, \"docker\" events with {type,action,actor,time,timeNano}, or an \"error\"/\"info\" event for edge environments, missing/unknown environment, or a lost Docker connection)"
+          },
+          "403": {
+            "description": "Permission denied, or no access to the environment"
           }
         },
         "security": [
@@ -12585,7 +13213,8 @@
                     "branches": {
                       "type": "array",
                       "items": {
-                        "type": "string"
+                        "type": "object",
+                        "properties": {}
                       }
                     }
                   },
@@ -13163,10 +13792,12 @@
                   "type": "object",
                   "properties": {
                     "vars": {
-                      "type": "string"
+                      "type": "object",
+                      "properties": {}
                     },
                     "sources": {
-                      "type": "string"
+                      "type": "object",
+                      "properties": {}
                     }
                   },
                   "required": [
@@ -13175,8 +13806,8 @@
                   ]
                 },
                 "example": {
-                  "vars": "string",
-                  "sources": "string"
+                  "vars": {},
+                  "sources": {}
                 }
               }
             }
@@ -14487,7 +15118,8 @@
                   "type": "object",
                   "properties": {
                     "vars": {
-                      "type": "string"
+                      "type": "object",
+                      "properties": {}
                     }
                   },
                   "required": [
@@ -14931,7 +15563,23 @@
           }
         },
         "security": [],
-        "description": "Public endpoint authenticated by the repository's webhook secret via `X-Hub-Signature-256` (GitHub) or `X-Gitlab-Token` (GitLab); the raw request body is used for HMAC verification. A secret is required by default; set ALLOW_WEBHOOKS_WITHOUT_SECRET=true to accept a secret-less trigger on an isolated network."
+        "description": "Public endpoint authenticated by the repository's webhook secret via `X-Hub-Signature-256` (GitHub) or `X-Gitlab-Token` (GitLab); the raw request body is used for HMAC verification. A secret is required by default; set ALLOW_WEBHOOKS_WITHOUT_SECRET=true to accept a secret-less trigger on an isolated network.",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ref": {
+                    "type": "string"
+                  }
+                },
+                "description": "Fields auto-detected from the handler's destructuring of the request body - generic string type, no @openapi annotation for this body yet."
+              }
+            }
+          }
+        }
       }
     },
     "/api/hawser/connect": {
@@ -15021,6 +15669,12 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Not authenticated"
+          },
+          "403": {
+            "description": "Permission denied (missing environments:view)"
           }
         },
         "security": [
@@ -15030,7 +15684,8 @@
           {
             "bearerAuth": []
           }
-        ]
+        ],
+        "description": "Requires environments:view. Each entry names a remote host and the Docker and agent versions running on it, so the listing is limited to the environments the caller can reach."
       },
       "post": {
         "operationId": "post_api_hawser_connect",
@@ -15476,7 +16131,8 @@
                       "type": "integer"
                     },
                     "environment": {
-                      "type": "string"
+                      "type": "object",
+                      "properties": {}
                     }
                   },
                   "required": [
@@ -15538,7 +16194,7 @@
         "tags": [
           "icons"
         ],
-        "summary": "Get a selfh.st app icon (raw SVG), fetched once from the CDN and cached on disk",
+        "summary": "Get a selfh.st app icon, fetched once from the CDN and cached on disk",
         "parameters": [
           {
             "name": "ref",
@@ -15552,7 +16208,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Raw image/svg+xml body (the icon, or a neutral placeholder if it can't be resolved), Cache-Control public max-age=604800"
+            "description": "Raw image body (image/svg+xml, image/webp, or image/png; a neutral SVG placeholder if it can't be resolved), Cache-Control public max-age=604800"
           },
           "400": {
             "description": "The ref is not a valid selfh.st reference"
@@ -15566,7 +16222,7 @@
             "bearerAuth": []
           }
         ],
-        "description": "Proxies an icon from the selfh.st collection so the browser never contacts an external CDN directly. The first request for a given ref fetches the SVG from jsdelivr and caches it under DATA_DIR; later requests are served locally. Icons are CC BY 4.0 (selfh.st). When the icon can't be resolved it returns a neutral placeholder SVG (200) rather than a 404, so a grid of icons doesn't read as probing to a WAF."
+        "description": "Proxies an icon from the selfh.st collection so the browser never contacts an external CDN directly. The first request for a given ref fetches it from jsdelivr in the first available format (SVG, else WebP, else PNG - about 16% of the collection has no SVG) and caches it under DATA_DIR; later requests are served locally. Icons are CC BY 4.0 (selfh.st). When the icon can't be resolved in any format it returns a neutral placeholder SVG (200) rather than a 404, so a grid of icons doesn't read as probing to a WAF."
       }
     },
     "/api/icons/selfhst/batch": {
@@ -15579,14 +16235,15 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": "icons maps each resolved reference to a data:image/svg+xml base64 URI; unresolvable refs are omitted.",
+            "description": "icons maps each resolved reference to a data: base64 URI in the format available (svg/webp/png); unresolvable refs are omitted.",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
                     "icons": {
-                      "type": "string"
+                      "type": "object",
+                      "properties": {}
                     }
                   },
                   "required": [
@@ -15613,7 +16270,7 @@
             "bearerAuth": []
           }
         ],
-        "description": "Takes a list of selfh.st icon references and returns each resolved icon as a data:image/svg+xml URI, keyed by reference. Unresolvable or invalid refs are omitted rather than returned as errors. Each icon is fetched from the CDN once and cached on disk, same as the single-icon endpoint.",
+        "description": "Takes a list of selfh.st icon references and returns each resolved icon as a data: URI (image/svg+xml, image/webp, or image/png depending on the format available), keyed by reference. Unresolvable or invalid refs are omitted rather than returned as errors. Each icon is fetched from the CDN once and cached on disk, same as the single-icon endpoint.",
         "requestBody": {
           "required": true,
           "content": {
@@ -15843,7 +16500,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "Image ID or name to export (from GET /api/images)"
+            "description": "Image ID to export (from GET /api/images); a name containing a slash cannot be used here, since it would split the route"
           },
           {
             "name": "env",
@@ -15853,6 +16510,15 @@
               "type": "integer"
             },
             "description": "ID of the environment the image belongs to (from GET /api/environments)"
+          },
+          {
+            "name": "tag",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Which of the image's tags to name the download after (defaults to its first tag)"
           },
           {
             "name": "compress",
@@ -16344,7 +17010,8 @@
                       "type": "boolean"
                     },
                     "result": {
-                      "type": "string"
+                      "type": "object",
+                      "properties": {}
                     }
                   },
                   "required": [
@@ -16504,7 +17171,7 @@
         "tags": [
           "jobs"
         ],
-        "summary": "Poll a background job's status and accumulated output lines (no auth — job ids are unguessable UUIDs)",
+        "summary": "Poll a background job's status and accumulated output lines (owner or admin only)",
         "parameters": [
           {
             "name": "id",
@@ -16588,7 +17255,7 @@
         "tags": [
           "jobs"
         ],
-        "summary": "Request cancellation of a running background job (no auth — job ids are unguessable UUIDs)",
+        "summary": "Request cancellation of a running background job (owner or admin only)",
         "parameters": [
           {
             "name": "id",
@@ -16621,6 +17288,9 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "Job not found"
           }
         },
         "security": [
@@ -16957,7 +17627,8 @@
             "description": "Failed to read the license status"
           }
         },
-        "security": []
+        "security": [],
+        "description": "Any authenticated caller sees whether a license is active and who it is issued to, because the UI decides what to offer from that. The key itself is included only for a caller holding license:manage."
       },
       "post": {
         "operationId": "post_api_license",
@@ -17568,7 +18239,7 @@
             "description": "Container ID is required"
           },
           "403": {
-            "description": "Permission denied"
+            "description": "Permission denied (needs networks:connect; the Dockhand container's own networks are admin-only)"
           },
           "500": {
             "description": "Failed to connect container to network"
@@ -17663,7 +18334,7 @@
             "description": "Container ID is required"
           },
           "403": {
-            "description": "Permission denied"
+            "description": "Permission denied (needs networks:disconnect; the Dockhand container's own networks are admin-only)"
           },
           "500": {
             "description": "Failed to disconnect container from network"
@@ -18810,6 +19481,12 @@
           "400": {
             "description": "eventType required, payload with title and message required, unknown event type, or environmentId missing for a non-system event"
           },
+          "401": {
+            "description": "Not authenticated"
+          },
+          "403": {
+            "description": "Permission denied (missing notifications:test, or no access to the environment)"
+          },
           "500": {
             "description": "Unknown error while sending the notification"
           }
@@ -18822,7 +19499,7 @@
             "bearerAuth": []
           }
         ],
-        "description": "environmentId from GET /api/environments.",
+        "description": "Delivers to the configured channels for real, so it requires notifications:test and access to the environment. environmentId from GET /api/environments.",
         "requestBody": {
           "required": true,
           "content": {
@@ -18871,6 +19548,174 @@
             }
           }
         }
+      }
+    },
+    "/api/preferences/environment-order": {
+      "get": {
+        "operationId": "get_api_preferences_environment-order",
+        "tags": [
+          "preferences"
+        ],
+        "summary": "Retrieve the saved environment order (environment ids, most preferred first)",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "order": {
+                      "type": "array",
+                      "items": {
+                        "type": "integer"
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "order": [
+                    3,
+                    1,
+                    2
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Failed to get the environment order"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "post_api_preferences_environment-order",
+        "tags": [
+          "preferences"
+        ],
+        "summary": "Save the environment order",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "order": {
+                      "type": "array",
+                      "items": {
+                        "type": "integer"
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "order": [
+                    0
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "order must be an array of environment ids"
+          },
+          "500": {
+            "description": "Failed to save the environment order"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "Ids the caller cannot see are simply absent from their list; each user has their own order, so saving never affects anyone else's.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "order": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer"
+                    }
+                  }
+                },
+                "required": [
+                  "order"
+                ]
+              },
+              "example": {
+                "order": [
+                  3,
+                  1,
+                  2
+                ]
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete_api_preferences_environment-order",
+        "tags": [
+          "preferences"
+        ],
+        "summary": "Reset the environment order back to the default (by name)",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "order": {
+                      "type": "array",
+                      "items": {
+                        "type": "integer"
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "order": [
+                    0
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Failed to reset the environment order"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ]
       }
     },
     "/api/preferences/favorite-groups": {
@@ -19646,6 +20491,174 @@
         ]
       }
     },
+    "/api/preferences/tag-order": {
+      "get": {
+        "operationId": "get_api_preferences_tag-order",
+        "tags": [
+          "preferences"
+        ],
+        "summary": "Retrieve the saved tag order (tag ids, most preferred first)",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "order": {
+                      "type": "array",
+                      "items": {
+                        "type": "integer"
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "order": [
+                    3,
+                    1,
+                    2
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Failed to get the tag order"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "post_api_preferences_tag-order",
+        "tags": [
+          "preferences"
+        ],
+        "summary": "Save the tag order",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "order": {
+                      "type": "array",
+                      "items": {
+                        "type": "integer"
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "order": [
+                    0
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "order must be an array of tag ids, or it repeats an id"
+          },
+          "500": {
+            "description": "Failed to save the tag order"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "The tag catalogue is shared, but the order is each user's own, so saving never changes anyone else's lists.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "order": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer"
+                    }
+                  }
+                },
+                "required": [
+                  "order"
+                ]
+              },
+              "example": {
+                "order": [
+                  3,
+                  1,
+                  2
+                ]
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete_api_preferences_tag-order",
+        "tags": [
+          "preferences"
+        ],
+        "summary": "Reset the tag order back to the default (by name)",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "order": {
+                      "type": "array",
+                      "items": {
+                        "type": "integer"
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "order": [
+                    0
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Failed to reset the tag order"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
     "/api/profile": {
       "get": {
         "operationId": "get_api_profile",
@@ -20033,7 +21046,7 @@
             "description": "Successful response"
           },
           "400": {
-            "description": "A supplied field has the wrong type (e.g. editorIndentGuides not a boolean)"
+            "description": "A supplied field has the wrong type or an invalid value (e.g. editorIndentGuides not a boolean, or an unknown editorTheme)"
           },
           "401": {
             "description": "Not authenticated"
@@ -20089,6 +21102,9 @@
                   },
                   "editorIndentGuides": {
                     "type": "boolean"
+                  },
+                  "editorTheme": {
+                    "type": "string"
                   }
                 }
               },
@@ -20103,7 +21119,8 @@
                 "animateIcons": true,
                 "coloredActionButtons": true,
                 "actionIconSize": "string",
-                "editorIndentGuides": true
+                "editorIndentGuides": true,
+                "editorTheme": "string"
               }
             }
           }
@@ -21466,7 +22483,7 @@
         "tags": [
           "roles"
         ],
-        "summary": "List all roles (built-in and custom); available in setup mode or with an enterprise license",
+        "summary": "List all roles (built-in and custom); needs admin or users:view, plus an enterprise license",
         "parameters": [],
         "responses": {
           "200": {
@@ -21515,7 +22532,7 @@
             }
           },
           "403": {
-            "description": "Enterprise license required"
+            "description": "Enterprise license required, or the account may not view users"
           },
           "500": {
             "description": "Failed to read the roles"
@@ -21617,7 +22634,7 @@
         "tags": [
           "roles"
         ],
-        "summary": "Get a single role by id; available in setup mode or with an enterprise license",
+        "summary": "Get a single role by id; needs admin or users:view, plus an enterprise license",
         "parameters": [
           {
             "name": "id",
@@ -21674,7 +22691,7 @@
             "description": "Role id is required"
           },
           "403": {
-            "description": "Enterprise license required"
+            "description": "Enterprise license required, or the account may not view users"
           },
           "404": {
             "description": "Role not found"
@@ -21919,6 +22936,9 @@
               }
             }
           },
+          "403": {
+            "description": "Permission denied (missing schedules:view)"
+          },
           "500": {
             "description": "Unexpected error while assembling the schedule list"
           }
@@ -21985,6 +23005,9 @@
           "400": {
             "description": "Invalid schedule id, invalid/unsupported type, or system_cleanup (cannot be removed)"
           },
+          "403": {
+            "description": "Permission denied"
+          },
           "404": {
             "description": "Schedule (or backup destination, for repo_* types) not found"
           },
@@ -22017,7 +23040,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "Schedule type (container_update, git_stack_sync, system_cleanup, env_update_check, image_prune, backup, repo_prune, repo_check, repo_verify)"
+            "description": "Schedule type (container_update, git_stack_sync, system_cleanup, env_update_check, image_prune, backup, repo_prune, repo_check, repo_verify, deploy_log_reconcile)"
           },
           {
             "name": "id",
@@ -22059,6 +23082,9 @@
           "400": {
             "description": "Invalid schedule id/type, or the triggered task itself reported failure"
           },
+          "403": {
+            "description": "Permission denied"
+          },
           "404": {
             "description": "Schedule, backup config, or backup destination not found (or backup feature disabled)"
           },
@@ -22091,7 +23117,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "Schedule type (container_update, git_stack_sync, env_update_check, image_prune, backup, repo_prune, repo_check, repo_verify, system_cleanup)"
+            "description": "Schedule type (container_update, git_stack_sync, env_update_check, image_prune, backup, repo_prune, repo_check, repo_verify, system_cleanup, deploy_log_reconcile)"
           },
           {
             "name": "id",
@@ -22131,7 +23157,10 @@
             }
           },
           "400": {
-            "description": "Invalid schedule id, unsupported type, or system_cleanup (cannot be paused)"
+            "description": "Invalid schedule id, unsupported type, or system_cleanup/deploy_log_reconcile (cannot be paused)"
+          },
+          "403": {
+            "description": "Permission denied"
           },
           "404": {
             "description": "Schedule, backup config, or backup destination not found"
@@ -22316,6 +23345,12 @@
               }
             }
           },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission denied (the :view permission for the requested schedule type's resource - stacks/backups/schedules)"
+          },
           "500": {
             "description": "Unexpected error while loading execution history"
           }
@@ -22392,6 +23427,12 @@
           "400": {
             "description": "Invalid execution id"
           },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission denied (the :view permission for the row's resource), or no access to its environment (enterprise)"
+          },
           "404": {
             "description": "Execution not found"
           },
@@ -22450,8 +23491,14 @@
           "400": {
             "description": "Invalid execution id"
           },
+          "401": {
+            "description": "Authentication required"
+          },
           "403": {
-            "description": "Permission denied (RBAC 'schedules:edit' missing)"
+            "description": "Permission denied (the :edit permission for the row's resource), or no access to its environment (enterprise)"
+          },
+          "404": {
+            "description": "Execution not found"
           },
           "500": {
             "description": "Unexpected error while deleting the execution"
@@ -22801,7 +23848,8 @@
                     "type": "string"
                   },
                   "config": {
-                    "type": "string"
+                    "type": "object",
+                    "properties": {}
                   }
                 },
                 "required": [
@@ -22813,7 +23861,7 @@
               "example": {
                 "name": "string",
                 "type": "string",
-                "config": "string"
+                "config": {}
               }
             }
           }
@@ -22856,21 +23904,46 @@
                       "type": "string"
                     },
                     "config": {
-                      "type": "string"
+                      "type": "object",
+                      "properties": {}
+                    },
+                    "stacksUsing": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "stackName": {
+                            "type": "string"
+                          },
+                          "environmentId": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "stackName"
+                        ]
+                      }
                     }
                   },
                   "required": [
                     "id",
                     "name",
                     "type",
-                    "config"
+                    "config",
+                    "stacksUsing"
                   ]
                 },
                 "example": {
                   "id": 0,
                   "name": "string",
                   "type": "string",
-                  "config": "string"
+                  "config": {},
+                  "stacksUsing": [
+                    {
+                      "stackName": "string",
+                      "environmentId": 0
+                    }
+                  ]
                 }
               }
             }
@@ -22978,14 +24051,15 @@
                     "type": "string"
                   },
                   "config": {
-                    "type": "string"
+                    "type": "object",
+                    "properties": {}
                   }
                 }
               },
               "example": {
                 "name": "string",
                 "type": "string",
-                "config": "string"
+                "config": {}
               }
             }
           }
@@ -23232,7 +24306,8 @@
                 "type": "object",
                 "properties": {
                   "config": {
-                    "type": "string"
+                    "type": "object",
+                    "properties": {}
                   }
                 }
               },
@@ -23241,6 +24316,115 @@
                   "host": "https://vault.example.com",
                   "mount": "secret"
                 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/secret-providers/default": {
+      "get": {
+        "operationId": "get_api_secret-providers_default",
+        "tags": [
+          "secret-providers"
+        ],
+        "summary": "Get the global default secret provider preselected for new stacks",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "providerId": {
+                      "type": "integer"
+                    }
+                  }
+                },
+                "example": {
+                  "providerId": 0
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission denied (needs secrets:view)"
+          },
+          "500": {
+            "description": "Failed to read the default secret provider"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "Returns null when no default is set, or when the stored provider no longer exists."
+      },
+      "put": {
+        "operationId": "put_api_secret-providers_default",
+        "tags": [
+          "secret-providers"
+        ],
+        "summary": "Set or clear the global default secret provider",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "providerId": {
+                      "type": "integer"
+                    }
+                  }
+                },
+                "example": {
+                  "providerId": 0
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid provider id, or the provider does not exist"
+          },
+          "403": {
+            "description": "Permission denied (needs secrets:edit)"
+          },
+          "500": {
+            "description": "Failed to save the default secret provider"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "Pass a provider id to make it the default, or null to clear it.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "providerId": {
+                    "type": "integer"
+                  }
+                }
+              },
+              "example": {
+                "providerId": 0
               }
             }
           }
@@ -23307,7 +24491,8 @@
                     "type": "string"
                   },
                   "config": {
-                    "type": "string"
+                    "type": "object",
+                    "properties": {}
                   }
                 },
                 "required": [
@@ -23556,7 +24741,8 @@
           {
             "bearerAuth": []
           }
-        ]
+        ],
+        "description": "A caller without settings:view receives only the values the interface needs to render itself. The operational settings are omitted from the body rather than returned empty, so an absent field says nothing about whether it is configured."
       },
       "post": {
         "operationId": "post_api_settings_general",
@@ -23615,6 +24801,165 @@
                   },
                   "externalStackPaths": {
                     "type": "string"
+                  },
+                  "actionIconSize": {
+                    "type": "string"
+                  },
+                  "compactPorts": {
+                    "type": "boolean"
+                  },
+                  "confirmDestructive": {
+                    "type": "boolean"
+                  },
+                  "dateFormat": {
+                    "type": "string"
+                  },
+                  "defaultBackupImage": {
+                    "type": "string"
+                  },
+                  "defaultComposeTemplate": {
+                    "type": "string"
+                  },
+                  "defaultGrypeArgs": {
+                    "type": "string"
+                  },
+                  "defaultGrypeImage": {
+                    "type": "string"
+                  },
+                  "defaultScannerDns": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "defaultScannerNetworkMode": {
+                    "type": "string"
+                  },
+                  "defaultTrivyArgs": {
+                    "type": "string"
+                  },
+                  "defaultTrivyImage": {
+                    "type": "string"
+                  },
+                  "deployLogReconcileCron": {
+                    "type": "string"
+                  },
+                  "deployLogReconcileEnabled": {
+                    "type": "boolean"
+                  },
+                  "downloadFormat": {
+                    "type": "string"
+                  },
+                  "editorFont": {
+                    "type": "string"
+                  },
+                  "editorTheme": {
+                    "type": "string"
+                  },
+                  "eventCleanupCron": {
+                    "type": "string"
+                  },
+                  "eventCleanupEnabled": {
+                    "type": "boolean"
+                  },
+                  "eventCollectionMode": {
+                    "type": "string"
+                  },
+                  "eventPollInterval": {
+                    "type": "integer"
+                  },
+                  "eventRetentionDays": {
+                    "type": "integer"
+                  },
+                  "font": {
+                    "type": "string"
+                  },
+                  "fontSize": {
+                    "type": "string"
+                  },
+                  "formatLogTimestamps": {
+                    "type": "boolean"
+                  },
+                  "gridFontSize": {
+                    "type": "string"
+                  },
+                  "highlightUpdates": {
+                    "type": "boolean"
+                  },
+                  "honorProxyLabels": {
+                    "type": "boolean"
+                  },
+                  "labelFilterMode": {
+                    "type": "string"
+                  },
+                  "logMaxLines": {
+                    "type": "integer"
+                  },
+                  "metricsCollectionInterval": {
+                    "type": "integer"
+                  },
+                  "primaryStackLocation": {
+                    "type": "string"
+                  },
+                  "protectScannerImages": {
+                    "type": "boolean"
+                  },
+                  "scanRetentionCron": {
+                    "type": "string"
+                  },
+                  "scanRetentionEnabled": {
+                    "type": "boolean"
+                  },
+                  "scanRetentionGraceDays": {
+                    "type": "integer"
+                  },
+                  "scanRetentionKeep": {
+                    "type": "integer"
+                  },
+                  "scannerCleanupCron": {
+                    "type": "string"
+                  },
+                  "scannerCleanupEnabled": {
+                    "type": "boolean"
+                  },
+                  "scheduleCleanupCron": {
+                    "type": "string"
+                  },
+                  "scheduleCleanupEnabled": {
+                    "type": "boolean"
+                  },
+                  "scheduleRetentionDays": {
+                    "type": "integer"
+                  },
+                  "showExposedPorts": {
+                    "type": "boolean"
+                  },
+                  "showGitCommitHash": {
+                    "type": "boolean"
+                  },
+                  "showImageChangelogLinks": {
+                    "type": "boolean"
+                  },
+                  "showStoppedContainers": {
+                    "type": "boolean"
+                  },
+                  "showWhatsNew": {
+                    "type": "boolean"
+                  },
+                  "terminalFont": {
+                    "type": "string"
+                  },
+                  "timeFormat": {
+                    "type": "string"
+                  },
+                  "useSelfhstIcons": {
+                    "type": "boolean"
+                  },
+                  "stackLogOperations": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
                   }
                 }
               },
@@ -23626,7 +24971,62 @@
                 "darkTheme": "string",
                 "defaultTimezone": "string",
                 "logBufferSizeKb": 0,
-                "externalStackPaths": "string"
+                "externalStackPaths": "string",
+                "actionIconSize": "string",
+                "compactPorts": true,
+                "confirmDestructive": true,
+                "dateFormat": "string",
+                "defaultBackupImage": "string",
+                "defaultComposeTemplate": "string",
+                "defaultGrypeArgs": "string",
+                "defaultGrypeImage": "string",
+                "defaultScannerDns": [
+                  "string"
+                ],
+                "defaultScannerNetworkMode": "string",
+                "defaultTrivyArgs": "string",
+                "defaultTrivyImage": "string",
+                "deployLogReconcileCron": "string",
+                "deployLogReconcileEnabled": true,
+                "downloadFormat": "string",
+                "editorFont": "string",
+                "editorTheme": "string",
+                "eventCleanupCron": "string",
+                "eventCleanupEnabled": true,
+                "eventCollectionMode": "string",
+                "eventPollInterval": 0,
+                "eventRetentionDays": 0,
+                "font": "string",
+                "fontSize": "string",
+                "formatLogTimestamps": true,
+                "gridFontSize": "string",
+                "highlightUpdates": true,
+                "honorProxyLabels": true,
+                "labelFilterMode": "string",
+                "logMaxLines": 0,
+                "metricsCollectionInterval": 0,
+                "primaryStackLocation": "string",
+                "protectScannerImages": true,
+                "scanRetentionCron": "string",
+                "scanRetentionEnabled": true,
+                "scanRetentionGraceDays": 0,
+                "scanRetentionKeep": 0,
+                "scannerCleanupCron": "string",
+                "scannerCleanupEnabled": true,
+                "scheduleCleanupCron": "string",
+                "scheduleCleanupEnabled": true,
+                "scheduleRetentionDays": 0,
+                "showExposedPorts": true,
+                "showGitCommitHash": true,
+                "showImageChangelogLinks": true,
+                "showStoppedContainers": true,
+                "showWhatsNew": true,
+                "terminalFont": "string",
+                "timeFormat": "string",
+                "useSelfhstIcons": true,
+                "stackLogOperations": [
+                  "string"
+                ]
               }
             }
           }
@@ -23802,6 +25202,15 @@
             "description": "When true, also check the scanner images for available updates (slower)"
           },
           {
+            "name": "checkNewerVersions",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "When true, also ask the registry whether a newer scanner RELEASE exists (slower)"
+          },
+          {
             "name": "settingsOnly",
             "in": "query",
             "required": false,
@@ -23813,7 +25222,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Scanner settings and (unless settingsOnly) availability, versions, updates and defaults"
+            "description": "Scanner settings and (unless settingsOnly) availability, versions, updates, newerVersions and defaults"
           },
           "403": {
             "description": "Permission denied (missing settings:view for the environment)"
@@ -23888,7 +25297,7 @@
             "description": "Invalid scanner type (must be none, grype, trivy or both)"
           },
           "403": {
-            "description": "Permission denied (missing settings:edit for the environment)"
+            "description": "Permission denied (missing settings:edit for the environment, or not an administrator when changing a scanner image)"
           },
           "500": {
             "description": "Failed to save the scanner settings"
@@ -23920,6 +25329,12 @@
                   },
                   "envId": {
                     "type": "integer"
+                  },
+                  "grypeImage": {
+                    "type": "string"
+                  },
+                  "trivyImage": {
+                    "type": "string"
                   }
                 }
               },
@@ -24152,6 +25567,9 @@
                 }
               }
             }
+          },
+          "403": {
+            "description": "Permission denied (needs settings:view)"
           }
         },
         "security": [
@@ -24250,6 +25668,43 @@
           }
         },
         "security": []
+      }
+    },
+    "/api/stack-tags": {
+      "get": {
+        "operationId": "get_api_stack-tags",
+        "tags": [
+          "stack-tags"
+        ],
+        "summary": "List all stack tag assignments for an environment as a name -> tagIds map",
+        "parameters": [
+          {
+            "name": "env",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Environment id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A JSON object mapping stack name to its array of tag ids"
+          },
+          "403": {
+            "description": "Permission denied (needs stacks:view)"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "Returns every stack that has tags assigned in the given environment, so the stacks list can render and filter by tag in one request."
       }
     },
     "/api/stacks": {
@@ -24352,7 +25807,8 @@
                   "envVars": {
                     "type": "array",
                     "items": {
-                      "type": "string"
+                      "type": "object",
+                      "properties": {}
                     }
                   },
                   "rawEnvContent": {
@@ -24369,6 +25825,15 @@
                   },
                   "environmentId": {
                     "type": "integer"
+                  },
+                  "pull": {
+                    "type": "boolean"
+                  },
+                  "build": {
+                    "type": "boolean"
+                  },
+                  "forceRecreate": {
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -24382,13 +25847,16 @@
                 "composePath": "string",
                 "envPath": "string",
                 "envVars": [
-                  "string"
+                  {}
                 ],
                 "rawEnvContent": "string",
                 "secretProviderId": 0,
                 "start": true,
                 "envId": 0,
-                "environmentId": 0
+                "environmentId": 0,
+                "pull": true,
+                "build": true,
+                "forceRecreate": true
               }
             }
           }
@@ -24542,6 +26010,9 @@
                       "type": "integer"
                     },
                     "currentComposePath": {
+                      "type": "string"
+                    },
+                    "persistenceWarning": {
                       "type": "string"
                     }
                   },
@@ -24727,6 +26198,15 @@
                   },
                   "secretProviderId": {
                     "type": "integer"
+                  },
+                  "pull": {
+                    "type": "boolean"
+                  },
+                  "build": {
+                    "type": "boolean"
+                  },
+                  "forceRecreate": {
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -24741,7 +26221,10 @@
                 "oldEnvPath": "string",
                 "moveFromDir": "string",
                 "restart": true,
-                "secretProviderId": 0
+                "secretProviderId": 0,
+                "pull": true,
+                "build": true,
+                "forceRecreate": true
               }
             }
           }
@@ -24912,6 +26395,357 @@
         }
       }
     },
+    "/api/stacks/{name}/deploys": {
+      "get": {
+        "operationId": "get_api_stacks_name_deploys",
+        "tags": [
+          "stacks"
+        ],
+        "summary": "List deploy runs recorded for a stack (no log text -- see GET .../{runId}/log)",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Stack name (from GET /api/stacks)"
+          },
+          {
+            "name": "env",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Environment id the stack belongs to (from GET /api/environments). Omit, or pass the literal string \"null\", for the local/default environment (deploys triggered without an explicit env, the normal shape on a single-environment install)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "runs": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "environmentId": {
+                            "type": "integer"
+                          },
+                          "triggeredBy": {
+                            "type": "string"
+                          },
+                          "triggeredAt": {
+                            "type": "string"
+                          },
+                          "startedAt": {
+                            "type": "string"
+                          },
+                          "completedAt": {
+                            "type": "string"
+                          },
+                          "duration": {
+                            "type": "integer"
+                          },
+                          "status": {
+                            "type": "string"
+                          },
+                          "errorMessage": {
+                            "type": "string"
+                          },
+                          "details": {
+                            "type": "object",
+                            "properties": {}
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "triggeredBy",
+                          "triggeredAt",
+                          "status"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "runs"
+                  ]
+                },
+                "example": {
+                  "runs": [
+                    {
+                      "id": 0,
+                      "environmentId": 0,
+                      "triggeredBy": "string",
+                      "triggeredAt": "string",
+                      "startedAt": "string",
+                      "completedAt": "string",
+                      "duration": 0,
+                      "status": "string",
+                      "errorMessage": "string",
+                      "details": {}
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "env query parameter must be an integer, or omitted/\"null\" for the local environment"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission denied (needs stacks:view), or access denied to this environment"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/stacks/{name}/deploys/{runId}": {
+      "get": {
+        "operationId": "get_api_stacks_name_deploys_runId",
+        "tags": [
+          "stacks"
+        ],
+        "summary": "Get a single deploy run's metadata (no log text -- see GET .../{runId}/log)",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Stack name (from GET /api/stacks)"
+          },
+          {
+            "name": "runId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Run id (from GET /api/stacks/{name}/deploys)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer"
+                    },
+                    "environmentId": {
+                      "type": "integer"
+                    },
+                    "triggeredBy": {
+                      "type": "string"
+                    },
+                    "triggeredAt": {
+                      "type": "string"
+                    },
+                    "startedAt": {
+                      "type": "string"
+                    },
+                    "completedAt": {
+                      "type": "string"
+                    },
+                    "duration": {
+                      "type": "integer"
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "errorMessage": {
+                      "type": "string"
+                    },
+                    "details": {
+                      "type": "object",
+                      "properties": {}
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "triggeredBy",
+                    "triggeredAt",
+                    "status"
+                  ]
+                },
+                "example": {
+                  "id": 0,
+                  "environmentId": 0,
+                  "triggeredBy": "string",
+                  "triggeredAt": "string",
+                  "startedAt": "string",
+                  "completedAt": "string",
+                  "duration": 0,
+                  "status": "string",
+                  "errorMessage": "string",
+                  "details": {}
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission denied (needs stacks:view for the run's own environment), or access denied to this environment"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "400 (\"Invalid run id\") and 404 (\"Deploy run not found\", also returned for a run that belongs to a different stack) are produced by the shared loadOwnedDeployRun() helper (deploy-run-access.ts), not literally in this handler's body -- the openapi generator's static scanner cannot see status()/error() calls in a different file, hence the prose here instead of resp-400/resp-404 lines (same pattern as POST /api/backup/destinations/{id}/task's description)."
+      },
+      "delete": {
+        "operationId": "delete_api_stacks_name_deploys_runId",
+        "tags": [
+          "stacks"
+        ],
+        "summary": "Delete a deploy run's database record and its on-disk log file",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Stack name (from GET /api/stacks)"
+          },
+          {
+            "name": "runId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Run id (from GET /api/stacks/{name}/deploys)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success"
+                  ]
+                },
+                "example": {
+                  "success": true
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission denied (needs stacks:edit for the run's own environment), or access denied to this environment"
+          },
+          "409": {
+            "description": "The run has not finished yet (status is not a terminal one) -- deleting a"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "400 (\"Invalid run id\") and 404 (\"Deploy run not found\", also returned for a run that belongs to a different stack) are produced by the shared loadOwnedDeployRun() helper (deploy-run-access.ts), not literally in this handler's body -- see GET .../{runId}'s description for why that means prose here instead of resp-400/resp-404 lines."
+      }
+    },
+    "/api/stacks/{name}/deploys/{runId}/log": {
+      "get": {
+        "operationId": "get_api_stacks_name_deploys_runId_log",
+        "tags": [
+          "stacks"
+        ],
+        "summary": "Get a deploy run's log text (text/plain, from the on-disk file)",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Stack name (from GET /api/stacks)"
+          },
+          {
+            "name": "runId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Run id (from GET /api/stacks/{name}/deploys)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Plain-text log content"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission denied (needs stacks:view for the run's own environment), or access denied to this environment"
+          },
+          "404": {
+            "description": "Deploy run not found (also returned for a run that belongs to a different stack), or log file missing"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "400 (\"Invalid run id\") is produced by the shared loadOwnedDeployRun() helper (deploy-run-access.ts), not literally in this handler's body -- the openapi generator's static scanner cannot see status()/error() calls in a different file, hence the prose here instead of a resp-400 line (same pattern as POST /api/backup/destinations/{id}/task's description). The 404 below covers BOTH loadOwnedDeployRun's \"run not found / belongs to a different stack\" AND this handler's own \"log file missing\" -- the latter IS literal in this file's body, which is why it can stay a resp-404 line."
+      }
+    },
     "/api/stacks/{name}/down": {
       "post": {
         "operationId": "post_api_stacks_name_down",
@@ -25057,7 +26891,8 @@
                       }
                     },
                     "secretProvider": {
-                      "type": "string"
+                      "type": "object",
+                      "properties": {}
                     }
                   },
                   "required": [
@@ -25075,7 +26910,7 @@
                   "injectedSecretKeys": [
                     "string"
                   ],
-                  "secretProvider": "string"
+                  "secretProvider": {}
                 }
               }
             }
@@ -26041,6 +27876,166 @@
         ]
       }
     },
+    "/api/stacks/{name}/tags": {
+      "get": {
+        "operationId": "get_api_stacks_name_tags",
+        "tags": [
+          "stacks"
+        ],
+        "summary": "Get the tag ids assigned to one stack (by name)",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Stack name"
+          },
+          {
+            "name": "env",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Environment id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "tagIds": {
+                      "type": "array",
+                      "items": {
+                        "type": "integer"
+                      }
+                    }
+                  },
+                  "required": [
+                    "tagIds"
+                  ]
+                },
+                "example": {
+                  "tagIds": [
+                    3
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission denied (needs stacks:view)"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "put": {
+        "operationId": "put_api_stacks_name_tags",
+        "tags": [
+          "stacks"
+        ],
+        "summary": "Replace the tag ids assigned to one stack (by name)",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Stack name"
+          },
+          {
+            "name": "env",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Environment id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "tagIds": {
+                      "type": "array",
+                      "items": {
+                        "type": "integer"
+                      }
+                    }
+                  },
+                  "required": [
+                    "tagIds"
+                  ]
+                },
+                "example": {
+                  "tagIds": [
+                    3
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission denied (needs stacks:edit)"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tagIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer"
+                    }
+                  }
+                },
+                "required": [
+                  "tagIds"
+                ]
+              },
+              "example": {
+                "tagIds": [
+                  3
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/stacks/{name}/validate": {
       "post": {
         "operationId": "post_api_stacks_name_validate",
@@ -26100,7 +28095,8 @@
                             "type": "integer"
                           },
                           "fix": {
-                            "type": "string"
+                            "type": "object",
+                            "properties": {}
                           },
                           "fixDescription": {
                             "type": "string"
@@ -26173,6 +28169,7 @@
             "bearerAuth": []
           }
         ],
+        "description": "Set existing:true when validating an already-deployed stack, so the stack's own running containers/ports are excluded from the cross-stack collision checks; omit it (or false) for a brand-new stack, where a name/port clash with a running stack of the same name must still be reported.",
         "requestBody": {
           "required": true,
           "content": {
@@ -26182,6 +28179,9 @@
                 "properties": {
                   "compose": {
                     "type": "string"
+                  },
+                  "existing": {
+                    "type": "boolean"
                   },
                   "config": {
                     "type": "object",
@@ -26193,12 +28193,20 @@
                         }
                       },
                       "severity": {
-                        "type": "string"
+                        "type": "object",
+                        "properties": {}
                       }
                     }
                   },
                   "envVars": {
-                    "type": "string"
+                    "type": "object",
+                    "properties": {}
+                  },
+                  "providerKeys": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
                   }
                 },
                 "required": [
@@ -26374,6 +28382,9 @@
                 }
               }
             }
+          },
+          "403": {
+            "description": "Permission denied (needs stacks:view, and access to the environment)"
           }
         },
         "security": [
@@ -26461,6 +28472,9 @@
           },
           "400": {
             "description": "Stack name is required"
+          },
+          "403": {
+            "description": "Permission denied (needs stacks:view, and access to the environment)"
           }
         },
         "security": [
@@ -26806,19 +28820,24 @@
                   "type": "object",
                   "properties": {
                     "docker": {
-                      "type": "string"
+                      "type": "object",
+                      "properties": {}
                     },
                     "host": {
-                      "type": "string"
+                      "type": "object",
+                      "properties": {}
                     },
                     "runtime": {
-                      "type": "string"
+                      "type": "object",
+                      "properties": {}
                     },
                     "database": {
-                      "type": "string"
+                      "type": "object",
+                      "properties": {}
                     },
                     "stats": {
-                      "type": "string"
+                      "type": "object",
+                      "properties": {}
                     }
                   },
                   "required": [
@@ -26904,7 +28923,8 @@
                   "type": "object",
                   "properties": {
                     "diskUsage": {
-                      "type": "string"
+                      "type": "object",
+                      "properties": {}
                     }
                   }
                 },
@@ -27191,6 +29211,303 @@
           },
           "500": {
             "description": "Failed to read file"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/tags": {
+      "get": {
+        "operationId": "get_api_tags",
+        "tags": [
+          "tags"
+        ],
+        "summary": "List the global tag catalog (name + colour)",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "tags": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "color": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "color"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "tags"
+                  ]
+                },
+                "example": {
+                  "tags": [
+                    {
+                      "id": 3,
+                      "name": "auth",
+                      "color": "green"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission denied (needs containers:view)"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "post_api_tags",
+        "tags": [
+          "tags"
+        ],
+        "summary": "Create a tag (or return the existing one with the same name) in the global catalog",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "color": {
+                      "type": "string"
+                    },
+                    "icon": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "color"
+                  ]
+                },
+                "example": {
+                  "id": 3,
+                  "name": "auth",
+                  "color": "green",
+                  "icon": "shield"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing or invalid tag name"
+          },
+          "403": {
+            "description": "Permission denied (admin only)"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "color": {
+                    "type": "string"
+                  },
+                  "icon": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name"
+                ]
+              },
+              "example": {
+                "name": "auth",
+                "color": "green",
+                "icon": "shield"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/tags/{id}": {
+      "put": {
+        "operationId": "put_api_tags_id",
+        "tags": [
+          "tags"
+        ],
+        "summary": "Update a global catalog tag's name and/or colour",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Tag id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success"
+                  ]
+                },
+                "example": {
+                  "success": true
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid tag id or name"
+          },
+          "403": {
+            "description": "Permission denied (admin only)"
+          },
+          "409": {
+            "description": "A tag with that name already exists"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "color": {
+                    "type": "string"
+                  },
+                  "icon": {
+                    "type": "string"
+                  }
+                }
+              },
+              "example": {
+                "color": "blue",
+                "icon": "cloud"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete_api_tags_id",
+        "tags": [
+          "tags"
+        ],
+        "summary": "Delete a catalog tag (removes it from every container and stack)",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Tag id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success"
+                  ]
+                },
+                "example": {
+                  "success": true
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid tag id"
+          },
+          "403": {
+            "description": "Permission denied (admin only)"
           }
         },
         "security": [
@@ -27686,7 +30003,7 @@
         "tags": [
           "users"
         ],
-        "summary": "List all local/SSO users (any authenticated user may view — only mutations are RBAC-gated)",
+        "summary": "List all local/SSO users",
         "parameters": [],
         "responses": {
           "200": {
@@ -27751,6 +30068,9 @@
           "401": {
             "description": "Not authenticated"
           },
+          "403": {
+            "description": "Permission denied (missing users:view)"
+          },
           "500": {
             "description": "Unexpected error while loading users"
           }
@@ -27762,7 +30082,8 @@
           {
             "bearerAuth": []
           }
-        ]
+        ],
+        "description": "Requires users:view. The list carries every account's email address and says which ones are administrators."
       },
       "post": {
         "operationId": "post_api_users",
@@ -27955,6 +30276,9 @@
           "401": {
             "description": "Authentication required (auth is enabled and the caller is not authenticated)"
           },
+          "403": {
+            "description": "Permission denied (missing users:view, reading another user's record)"
+          },
           "404": {
             "description": "User not found"
           },
@@ -27969,7 +30293,8 @@
           {
             "bearerAuth": []
           }
-        ]
+        ],
+        "description": "Requires users:view, except for one's own record. The payload names the account, its email, whether it holds the Admin role and whether MFA is set up."
       },
       "put": {
         "operationId": "put_api_users_id",
@@ -28371,8 +30696,11 @@
           "400": {
             "description": "User id is required"
           },
+          "401": {
+            "description": "Not authenticated"
+          },
           "403": {
-            "description": "Enterprise license required"
+            "description": "Enterprise license required, or permission denied (missing users:view)"
           },
           "404": {
             "description": "User not found"
@@ -28388,7 +30716,8 @@
           {
             "bearerAuth": []
           }
-        ]
+        ],
+        "description": "Requires users:view, except for one's own assignments. Which roles an account holds says what it can reach, so it is read like the account itself."
       },
       "post": {
         "operationId": "post_api_users_id_roles",
@@ -29484,7 +31813,8 @@
                     "findings": {
                       "type": "array",
                       "items": {
-                        "type": "string"
+                        "type": "object",
+                        "properties": {}
                       }
                     },
                     "total": {
@@ -29542,7 +31872,8 @@
                       "type": "integer"
                     },
                     "summary": {
-                      "type": "string"
+                      "type": "object",
+                      "properties": {}
                     },
                     "images": {
                       "type": "array",
