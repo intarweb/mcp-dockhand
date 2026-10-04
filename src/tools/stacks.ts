@@ -879,4 +879,57 @@ export function registerStackTools(server: McpServer, client: DockhandClient): v
       return jsonResponse(await client.post(`/api/stacks/${encodePath(name)}/validate`, body, { env: environmentId }));
     }
   );
+
+  // Deploy history (Dockhand 1.0.51, Finsys/dockhand #1499). Ground-truthed against
+  // v1.0.51 src/routes/api/stacks/[name]/deploys/+server.ts,
+  // src/routes/api/stacks/[name]/deploys/[runId]/+server.ts (GET+DELETE) and
+  // src/routes/api/stacks/[name]/deploys/[runId]/log/+server.ts.
+  //
+  // Only list_stack_deploys takes an `env` query param — the other three derive the
+  // environment from the loaded run itself (loadOwnedDeployRun), per the handlers'
+  // own doc comments; they take NO env query at all. `environmentId` is `.optional()`
+  // on list_stack_deploys because the handler accepts it OMITTED (and the literal
+  // string "null") to mean the local/default environment — buildUrl() already drops
+  // an `undefined` env value from the query string, which produces exactly that
+  // omitted shape (no need to pass the literal "null" ourselves).
+  registerTool(server, 'list_stack_deploys',
+    {
+      environmentId: z.number().optional().describe('Environment ID (from GET /api/environments). Omit for the local/default environment (deploys triggered without an explicit env — the normal shape on a single-environment install).'),
+      name: z.string().describe('Stack name'),
+    },
+    async ({ environmentId, name }) => {
+      return jsonResponse(await client.get(`/api/stacks/${encodePath(name)}/deploys`, { env: environmentId }));
+    }
+  );
+
+  registerTool(server, 'get_stack_deploy',
+    {
+      name: z.string().describe('Stack name'),
+      runId: z.number().describe('Deploy run ID (from list_stack_deploys) — the environment is derived from the run itself, no environmentId param here'),
+    },
+    async ({ name, runId }) => {
+      return jsonResponse(await client.get(`/api/stacks/${encodePath(name)}/deploys/${encodePath(runId)}`));
+    }
+  );
+
+  registerTool(server, 'delete_stack_deploy',
+    {
+      name: z.string().describe('Stack name'),
+      runId: z.number().describe('Deploy run ID (from list_stack_deploys) — the environment is derived from the run itself, no environmentId param here'),
+    },
+    async ({ name, runId }) => {
+      return jsonResponse(await client.delete(`/api/stacks/${encodePath(name)}/deploys/${encodePath(runId)}`));
+    }
+  );
+
+  registerTool(server, 'get_stack_deploy_log',
+    {
+      name: z.string().describe('Stack name'),
+      runId: z.number().describe('Deploy run ID (from list_stack_deploys) — the environment is derived from the run itself, no environmentId param here'),
+    },
+    async ({ name, runId }) => {
+      const data = await client.get(`/api/stacks/${encodePath(name)}/deploys/${encodePath(runId)}/log`);
+      return textResponse(data);
+    }
+  );
 }
