@@ -734,3 +734,15 @@ describe('batch_delete_backup_snapshots (T6)', () => {
     expectToolError(result, 'ECONNRESET');
   });
 });
+
+describe('batch_delete_backup_snapshots destinationId validation (Codex review)', () => {
+  it('rejects zero, negative, and fractional destinationId', () => {
+    const { schemas } = setup();
+    const shape = z.object(schemas.get('batch_delete_backup_snapshots')!);
+    const ids = ['a'];
+    expect(shape.safeParse({ destinationId: 0, snapshotIds: ids }).success).toBe(false);
+    expect(shape.safeParse({ destinationId: -1, snapshotIds: ids }).success).toBe(false);
+    expect(shape.safeParse({ destinationId: 1.5, snapshotIds: ids }).success).toBe(false);
+    expect(shape.safeParse({ destinationId: 3, snapshotIds: ids }).success).toBe(true);
+  });
+});

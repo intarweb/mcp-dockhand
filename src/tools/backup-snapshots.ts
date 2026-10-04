@@ -259,7 +259,7 @@ export function registerBackupSnapshotTools(server: McpServer, client: DockhandC
 
   registerTool(server, 'batch_delete_backup_snapshots',
     {
-      destinationId: z.number().describe('Backup destination all the snapshots live in (from list_backup_destinations) — required by the handler (400 if missing/non-positive)'),
+      destinationId: z.number().int().positive().describe('Backup destination all the snapshots live in (from list_backup_destinations) — required by the handler (400 if missing/non-positive)'),
       snapshotIds: z.array(z.string()).min(1).describe('Restic snapshot ids to forget (from list_backup_snapshots) — required and must be non-empty (400 otherwise). IRREVERSIBLE: runs ONE restic forget --prune for the whole batch (one prune, not one per snapshot). Each id is still ownership- and (enterprise) environment-access-checked individually; ids that fail a check are skipped (reported in `skipped`), never forgotten — a per-snapshot skip does not fail the whole call.'),
     },
     async ({ destinationId, snapshotIds }) => {

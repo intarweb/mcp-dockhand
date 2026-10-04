@@ -46,11 +46,13 @@ function textOut(res: unknown): string {
   return (res as { content: { text: string }[] }).content[0]!.text;
 }
 
-function setup(): { handlers: Map<string, ToolHandler>; client: MockClient } {
+function setup(): { handlers: Map<string, ToolHandler>; schemas: Map<string, ZodShape>; client: MockClient } {
   const handlers = new Map<string, ToolHandler>();
+  const schemas = new Map<string, ZodShape>();
   const server = {
-    tool: (name: string, _d: string, _s: ZodShape, cb: ToolHandler) => {
+    tool: (name: string, _d: string, s: ZodShape, cb: ToolHandler) => {
       handlers.set(name, cb);
+      schemas.set(name, s);
     },
   };
   const client: MockClient = {
@@ -61,7 +63,7 @@ function setup(): { handlers: Map<string, ToolHandler>; client: MockClient } {
   };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   registerStackTools(server as any, client as any);
-  return { handlers, client };
+  return { handlers, schemas, client };
 }
 
 async function call(name: string, args: Record<string, unknown>) {
@@ -198,4 +200,15 @@ describe('get_stack_deploy_log', () => {
     expect(asJson).not.toBe(raw);
     expect(asJson).toContain('\\n');
   });
+});
+
+describe('deploy run id validation (Codex review)', () => {
+  for (const name of ['get_stack_deploy', 'delete_stack_deploy', 'get_stack_deploy_log']) {
+    it(`${name} rejects a fractional runId`, () => {
+      const { schemas } = setup();
+      const shape = z.object(schemas.get(name)!);
+      expect(shape.safeParse({ name: 's', runId: 1.5 }).success).toBe(false);
+      expect(shape.safeParse({ name: 's', runId: 7 }).success).toBe(true);
+    });
+  }
 });

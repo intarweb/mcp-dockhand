@@ -160,3 +160,14 @@ describe('reset_tag_order', () => {
     expect(client.delete).toHaveBeenCalledWith('/api/preferences/tag-order');
   });
 });
+
+describe('order uniqueness validation (Codex review)', () => {
+  for (const name of ['set_environment_order', 'set_tag_order']) {
+    it(`${name} rejects a repeated id`, () => {
+      const { schemas } = setup();
+      const shape = z.object(schemas.get(name)!);
+      expect(shape.safeParse({ order: [1, 1] }).success).toBe(false);
+      expect(shape.safeParse({ order: [1, 2, 3] }).success).toBe(true);
+    });
+  }
+});

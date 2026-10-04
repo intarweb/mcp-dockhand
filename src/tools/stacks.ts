@@ -926,7 +926,7 @@ export function registerStackTools(server: McpServer, client: DockhandClient): v
   registerTool(server, 'get_stack_deploy',
     {
       name: z.string().describe('Stack name'),
-      runId: z.number().describe('Deploy run ID (from list_stack_deploys) — the environment is derived from the run itself, no environmentId param here'),
+      runId: z.number().int().describe('Deploy run ID (from list_stack_deploys) — the environment is derived from the run itself, no environmentId param here'),
     },
     async ({ name, runId }) => {
       return jsonResponse(await client.get(`/api/stacks/${encodePath(name)}/deploys/${encodePath(runId)}`));
@@ -936,7 +936,7 @@ export function registerStackTools(server: McpServer, client: DockhandClient): v
   registerTool(server, 'delete_stack_deploy',
     {
       name: z.string().describe('Stack name'),
-      runId: z.number().describe('Deploy run ID (from list_stack_deploys) — the environment is derived from the run itself, no environmentId param here'),
+      runId: z.number().int().describe('Deploy run ID (from list_stack_deploys) — the environment is derived from the run itself, no environmentId param here'),
     },
     async ({ name, runId }) => {
       return jsonResponse(await client.delete(`/api/stacks/${encodePath(name)}/deploys/${encodePath(runId)}`));
@@ -946,7 +946,7 @@ export function registerStackTools(server: McpServer, client: DockhandClient): v
   registerTool(server, 'get_stack_deploy_log',
     {
       name: z.string().describe('Stack name'),
-      runId: z.number().describe('Deploy run ID (from list_stack_deploys) — the environment is derived from the run itself, no environmentId param here'),
+      runId: z.number().int().describe('Deploy run ID (from list_stack_deploys) — the environment is derived from the run itself, no environmentId param here'),
     },
     async ({ name, runId }) => {
       const data = await client.get(`/api/stacks/${encodePath(name)}/deploys/${encodePath(runId)}/log`);

@@ -201,7 +201,7 @@ const BACKUP_SNAPSHOT_DOWNLOAD_RETURNS_RAW_BYTES =
   'redacted/inline text preview instead of raw bytes, use dump_backup_snapshot_file.';
 
 const DEPLOY_LOG_MAY_CONTAIN_SECRETS =
-  ' SECURITY: a deploy log is the raw captured output of `docker compose` and the stack own ' +
+  ' SECURITY: a deploy log is the raw captured output of `docker compose` and the stack\'s own ' +
   'startup, so it can contain secrets that were printed to stdout/stderr and therefore survived ' +
   'Dockhand redaction (environment dumps, connection strings, tokens echoed by an entrypoint). ' +
   'The returned text lands in the tool call itself, and therefore in transcripts and logs. Treat ' +

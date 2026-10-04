@@ -41,7 +41,7 @@ export function registerPreferenceTools(server: McpServer, client: DockhandClien
 
   registerTool(server, 'set_environment_order',
     {
-      order: z.array(z.number().int()).describe('Environment ids in the desired display order (most preferred first). Must not repeat an id.'),
+      order: z.array(z.number().int()).refine((a) => new Set(a).size === a.length, { message: 'order must not repeat an id' }).describe('Environment ids in the desired display order (most preferred first). Must not repeat an id.'),
     },
     async ({ order }) => {
       return jsonResponse(await client.post('/api/preferences/environment-order', { order }));
@@ -64,7 +64,7 @@ export function registerPreferenceTools(server: McpServer, client: DockhandClien
 
   registerTool(server, 'set_tag_order',
     {
-      order: z.array(z.number().int()).describe('Tag ids in the desired display order (most preferred first). Must not repeat an id.'),
+      order: z.array(z.number().int()).refine((a) => new Set(a).size === a.length, { message: 'order must not repeat an id' }).describe('Tag ids in the desired display order (most preferred first). Must not repeat an id.'),
     },
     async ({ order }) => {
       return jsonResponse(await client.post('/api/preferences/tag-order', { order }));
