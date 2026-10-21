@@ -288,22 +288,29 @@ export function registerContainerTools(server: McpServer, client: DockhandClient
       startAfterCreate: z.boolean().optional().describe('Start container after creation'),
       env: z.array(z.string()).optional().describe('Environment variables (KEY=VALUE format)'),
       ports: z.record(z.string(), z.unknown()).optional().describe('Port bindings'),
-      volumes: z.array(z.string()).optional().describe('Volume mounts'),
+      volumeBinds: z.array(z.string()).optional().describe('Bind mounts as "host:container[:ro]" (Docker -v syntax)'),
+      volumes: z.array(z.string()).optional().describe('Alias for volumeBinds, kept for existing callers'),
       restartPolicy: z.string().optional().describe('Restart policy (e.g. unless-stopped)'),
       networkMode: z.string().optional().describe('Network mode'),
       labels: z.record(z.string(), z.string()).optional().describe('Container labels'),
+      cmd: z.array(z.string()).optional().describe('Command to run, overriding the image default'),
     },
-    async ({ environmentId, name, image, startAfterCreate, env: envVars, ports, volumes, restartPolicy, networkMode, labels }) => {
+    async ({ environmentId, name, image, startAfterCreate, env: envVars, ports, volumeBinds, volumes, restartPolicy, networkMode, labels, cmd }) => {
+      // Dockhand's POST /api/containers takes CreateContainerOptions field names
+      // (lowercase: env, labels, volumeBinds, ...) and builds the Docker HostConfig
+      // itself (src/lib/server/docker.ts createContainer). Docker-style keys such as
+      // Env, Labels or HostConfig.Binds are never read: the container is created
+      // with no env, labels or mounts, and the call still reports success.
       const body: Record<string, unknown> = { name, image };
       if (startAfterCreate !== undefined) body.startAfterCreate = startAfterCreate;
-      if (envVars) body.Env = envVars;
-      if (labels) body.Labels = labels;
-      const hostConfig: Record<string, unknown> = {};
-      if (restartPolicy) hostConfig.RestartPolicy = { Name: restartPolicy };
-      if (ports) hostConfig.PortBindings = ports;
-      if (volumes) hostConfig.Binds = volumes;
-      if (networkMode) hostConfig.NetworkMode = networkMode;
-      if (Object.keys(hostConfig).length > 0) body.HostConfig = hostConfig;
+      if (envVars) body.env = envVars;
+      if (labels) body.labels = labels;
+      if (ports) body.ports = ports;
+      const binds = volumeBinds ?? volumes;
+      if (binds) body.volumeBinds = binds;
+      if (restartPolicy) body.restartPolicy = restartPolicy;
+      if (networkMode) body.networkMode = networkMode;
+      if (cmd) body.cmd = cmd;
 
       return jsonResponse(await client.post('/api/containers', body, { env: environmentId }));
     }
