@@ -284,3 +284,38 @@ describe('set_git_stack_env_files — removed (POST .../env-files is read-only, 
     expect(handlers.has('get_git_stack_env_files')).toBe(true);
   });
 });
+
+describe('create_container — POST /api/containers reads CreateContainerOptions names (docker.ts createContainer)', () => {
+  it('sends env, labels and volumeBinds lowercase, never Docker-style Env/Labels/HostConfig', async () => {
+    const { handlers, client } = registerAndCapture((s, c) => registerContainerTools(s as never, c as never));
+    const handler = handlers.get('create_container')!;
+
+    await handler({
+      environmentId: 3,
+      name: 'probe',
+      image: 'alpine:latest',
+      env: ['A=1'],
+      labels: { role: 'probe' },
+      volumeBinds: ['/srv/data:/data:ro'],
+      restartPolicy: 'no',
+    });
+
+    const sent = client.post.mock.calls[0][1] as Record<string, unknown>;
+    expect(sent).toMatchObject({
+      name: 'probe', image: 'alpine:latest',
+      env: ['A=1'], labels: { role: 'probe' },
+      volumeBinds: ['/srv/data:/data:ro'], restartPolicy: 'no',
+    });
+    // Dockhand never reads these: a container created with them has no env,
+    // labels or mounts while the call still reports success.
+    expect(sent).not.toHaveProperty('Env');
+    expect(sent).not.toHaveProperty('Labels');
+    expect(sent).not.toHaveProperty('HostConfig');
+  });
+
+  it('keeps `volumes` working as an alias for volumeBinds', async () => {
+    const { handlers, client } = registerAndCapture((s, c) => registerContainerTools(s as never, c as never));
+    await handlers.get('create_container')!({ environmentId: 3, name: 'p', image: 'alpine', volumes: ['/a:/b'] });
+    expect(client.post.mock.calls[0][1]).toMatchObject({ volumeBinds: ['/a:/b'] });
+  });
+});
