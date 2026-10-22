@@ -33,7 +33,7 @@
  * any caller sending `Accept: application/json`. client.post() always sends that
  * header (see DockhandClient.request()), so run_backup_config uses the plain
  * client.post(), never client.postSSE() — postSSE would only ever get `{jobId}`
- * back here and there is no polling tool for it (same reasoning as
+ * back here and the caller would have to poll it with get_job instead of getting the result in one call (same reasoning as
  * run_backup_destination_task/verify_backup_destination in backup-destinations.ts).
  *
  * Neither `run` nor `stop` reads a request body — the run handler destructures

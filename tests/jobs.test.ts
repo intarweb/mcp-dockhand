@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { z } from 'zod';
 import { registerJobTools } from '../src/tools/jobs.js';
+import { TOOL_DESCRIPTION_SUFFIXES } from '../src/openapi/description-suffixes.js';
 
 type ToolHandler = (args: Record<string, unknown>) => Promise<unknown>;
 type ZodShape = Record<string, z.ZodTypeAny>;
@@ -77,5 +78,29 @@ describe('cancel_job', () => {
     expect(client.delete).toHaveBeenCalledTimes(1);
     expect(client.delete).toHaveBeenCalledWith('/api/jobs/b5d0c1e2-0000-4000-8000-000000000000');
     expect(jsonOut(result)).toEqual({ cancelled: true });
+  });
+});
+
+// Ground truth: Finsys/dockhand v1.0.54, src/lib/server/jobs.ts and
+// src/routes/api/jobs/[id]/+server.ts. cancelJob() only sets job.cancelRequested;
+// the only operation that polls it is vulnerabilities/scan-all, which the MCP calls
+// synchronously (no job). Finished jobs are swept 10 minutes after their last update,
+// and the store is in-memory, so a Dockhand restart loses every job.
+describe('job tool description suffixes', () => {
+  it('get_job warns that lines may carry secrets, are cumulative, and expire', () => {
+    const suffix = TOOL_DESCRIPTION_SUFFIXES.get_job;
+    expect(suffix).toBeDefined();
+    expect(suffix).toMatch(/secret/i);
+    expect(suffix).toMatch(/every line|all lines|cumulative/i);
+    expect(suffix).toMatch(/10 minutes/);
+    expect(suffix).toMatch(/restart/i);
+  });
+
+  it('cancel_job says cancellation is cooperative and does not stop deploys', () => {
+    const suffix = TOOL_DESCRIPTION_SUFFIXES.cancel_job;
+    expect(suffix).toBeDefined();
+    expect(suffix).toMatch(/cooperative/i);
+    expect(suffix).toMatch(/cancelled: ?true/);
+    expect(suffix).toMatch(/deploy/i);
   });
 });

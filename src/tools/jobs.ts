@@ -1,4 +1,5 @@
-// GET/DELETE /api/jobs/{id}: `lines` holds every line on each call; a cancel stops at the next unit of work.
+// GET/DELETE /api/jobs/{id}: `lines` holds every line on each call. A cancel only sets a flag
+// the operation must poll (see JOB_CANCEL_IS_COOPERATIVE in src/openapi/description-suffixes.ts).
 
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
