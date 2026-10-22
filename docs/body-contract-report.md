@@ -10,7 +10,7 @@
 > hartes Gate in `scripts/validate-mcp-tools.mjs` (Exit 1 + Auto-Issue) — hier weiterhin nur
 > zur Übersicht gelistet. Die übrigen drei Typen bleiben vollständig advisory.
 
-**Erzeugt:** 2026-10-22T10:49:10.840Z
+**Erzeugt:** 2026-10-22T11:15:56.363Z
 
 ## Zusammenfassung
 
@@ -47,7 +47,7 @@ Das Tool hat ein untypisiertes `z.record(...)`-Feld (z.B. `settings`), obwohl de
 | `create_backup_config` | POST | `/api/backup/configs` | `destinationId`, `targetName` | backup-configs.ts:110 |
 | `create_backup_destination` | POST | `/api/backup/destinations` | `name`, `repository`, `password` | backup-destinations.ts:83 |
 | `create_config_set` | POST | `/api/config-sets` | `name` | users.ts:281 |
-| `create_container` | POST | `/api/containers` | `name`, `image` | containers.ts:308 |
+| `create_container` | POST | `/api/containers` | `name`, `image` | containers.ts:325 |
 | `create_environment_notification` | POST | `/api/environments/{environmentId}/notifications` | `notificationId` | environments.ts:370 |
 | `create_git_credential` | POST | `/api/git/credentials` | `name` | git-stacks.ts:156 |
 | `create_git_stack` | POST | `/api/git/stacks` | `stackName` | git-stacks.ts:324 |
@@ -77,7 +77,7 @@ Das Tool hat ein untypisiertes `z.record(...)`-Feld (z.B. `settings`), obwohl de
 | `update_backup_destination` | PUT | `/api/backup/destinations/{destinationId}` | - | backup-destinations.ts:126 |
 | `update_config_set` | PUT | `/api/config-sets/{configSetId}` | - | users.ts:298 |
 | `update_container` | POST | `/api/containers/{containerId}/update` | - | containers.ts:279 |
-| `update_container_runtime` | POST | `/api/containers/{containerId}/update-runtime` | - | containers.ts:580 |
+| `update_container_runtime` | POST | `/api/containers/{containerId}/update-runtime` | - | containers.ts:597 |
 | `update_environment` | PUT | `/api/environments/{environmentId}` | - | environments.ts:197 |
 | `update_environment_notification` | PUT | `/api/environments/{environmentId}/notifications/{notificationId}` | - | environments.ts:401 |
 | `update_general_settings` | POST | `/api/settings/general` | - | system.ts:112 |
@@ -104,7 +104,7 @@ Für diesen body-tragenden Endpunkt liegt (noch) kein OpenAPI-Contract vor (fehl
 
 | Tool | HTTP | Pfad | Feld | Datei |
 |------|------|------|------|-------|
-| `check_container_updates` | POST | `/api/containers/check-updates` | - | containers.ts:463 |
+| `check_container_updates` | POST | `/api/containers/check-updates` | - | containers.ts:480 |
 | `deploy_git_repository` | POST | `/api/git/repositories/{repositoryId}/deploy` | - | git-stacks.ts:264 |
 | `deploy_git_stack` | POST | `/api/git/stacks/{stackId}/deploy` | - | git-stacks.ts:88 |
 | `deploy_git_stack_stream` | POST | `/api/git/stacks/{stackId}/deploy-stream` | - | git-stacks.ts:351 |
@@ -142,5 +142,5 @@ Für diesen body-tragenden Endpunkt liegt (noch) kein OpenAPI-Contract vor (fehl
 | `toggle_system_schedule` | POST | `/api/schedules/system/{scheduleId}/toggle` | - | schedules.ts:73 |
 | `trigger_environment_image_prune` | PUT | `/api/environments/{environmentId}/image-prune` | - | environments.ts:410 |
 | `unpause_container` | POST | `/api/containers/{containerId}/unpause` | - | containers.ts:218 |
-| `upload_container_file` | POST | `/api/containers/{containerId}/files/upload` | - | containers.ts:454 |
+| `upload_container_file` | POST | `/api/containers/{containerId}/files/upload` | - | containers.ts:471 |
 
