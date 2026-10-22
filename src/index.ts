@@ -6,6 +6,7 @@
  */
 
 import { createServer } from './server.js';
+import { parseApiToken } from './auth/api-token.js';
 import { logger, logFatalSync, describeThrown } from './utils/logger.js';
 
 /**
@@ -46,12 +47,37 @@ function getEnvOrThrow(name: string): string {
   return value;
 }
 
+// DOCKHAND_API_TOKEN selects token auth and makes the username/password pair
+// unnecessary. Only one mode is read: a set token wins, and the session
+// variables are then not even required to be present.
+//
+// The value is validated before use (see src/auth/api-token.ts): a malformed token
+// would otherwise fail every request with 401, and one with an embedded line break
+// makes fetch() throw an error that quotes the whole header, token included.
+const parsedToken = parseApiToken(process.env['DOCKHAND_API_TOKEN']);
+if (parsedToken.error) {
+  logFatalSync({ component: 'config', variable: 'DOCKHAND_API_TOKEN' }, parsedToken.error);
+  process.exit(1);
+}
+const apiToken = parsedToken.token;
+if (apiToken && (process.env['DOCKHAND_USERNAME'] || process.env['DOCKHAND_PASSWORD'])) {
+  logger.warn(
+    { component: 'config' },
+    'DOCKHAND_API_TOKEN is set, so DOCKHAND_USERNAME/DOCKHAND_PASSWORD are ignored',
+  );
+}
+
 const config = {
-  dockhand: {
-    url: getEnvOrThrow('DOCKHAND_URL'),
-    username: getEnvOrThrow('DOCKHAND_USERNAME'),
-    password: getEnvOrThrow('DOCKHAND_PASSWORD'),
-  },
+  dockhand: apiToken
+    ? {
+        url: getEnvOrThrow('DOCKHAND_URL'),
+        apiToken,
+      }
+    : {
+        url: getEnvOrThrow('DOCKHAND_URL'),
+        username: getEnvOrThrow('DOCKHAND_USERNAME'),
+        password: getEnvOrThrow('DOCKHAND_PASSWORD'),
+      },
   port: parseInt(process.env['MCP_PORT'] ?? '8080', 10),
   host: process.env['MCP_HOST'] || '0.0.0.0',
 };
@@ -60,6 +86,9 @@ logger.info(
   {
     component: 'config',
     dockhandUrl: config.dockhand.url,
+    // The mode, not the credential: username is absent in token mode, and the
+    // token value itself must never reach the log.
+    auth: apiToken ? 'api-token' : 'session',
     dockhandUser: config.dockhand.username,
     port: config.port,
   },

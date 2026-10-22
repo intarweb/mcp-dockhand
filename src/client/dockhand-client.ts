@@ -150,10 +150,10 @@ export class DockhandClient {
    */
   async postSSE(path: string, body?: unknown, params?: Record<string, string | number | undefined>): Promise<SSEResult> {
     const url = this.buildUrl(path, params);
-    const cookie = await this.session.getCookie();
+    const authHeaders = await this.session.getAuthHeaders();
 
     const headers: Record<string, string> = {
-      'Cookie': cookie,
+      ...authHeaders,
       'Accept': 'text/event-stream',
     };
 
@@ -168,14 +168,13 @@ export class DockhandClient {
       signal: AbortSignal.timeout(SSE_TIMEOUT_MS),
     });
 
-    if (response.status === 401) {
+    if (response.status === 401 && this.session.canRefresh()) {
       this.session.invalidate();
       // This attempt's body is never read — cancel it so #215's proxy stream
       // still fires its (discarded-attempt) debug line instead of never firing.
       await response.body?.cancel();
-      // Retry once after re-login
-      const retryCookie = await this.session.getCookie();
-      headers['Cookie'] = retryCookie;
+      // Retry once after re-login. Never in token mode (see canRefresh()).
+      Object.assign(headers, await this.session.getAuthHeaders());
       const retryResponse = await this.loggedFetch('POST', url, {
         method: 'POST',
         headers,
@@ -193,10 +192,10 @@ export class DockhandClient {
    */
   async putSSE(path: string, body?: unknown, params?: Record<string, string | number | undefined>): Promise<SSEResult> {
     const url = this.buildUrl(path, params);
-    const cookie = await this.session.getCookie();
+    const authHeaders = await this.session.getAuthHeaders();
 
     const headers: Record<string, string> = {
-      'Cookie': cookie,
+      ...authHeaders,
       'Accept': 'text/event-stream',
       'Content-Type': 'application/json',
     };
@@ -208,13 +207,12 @@ export class DockhandClient {
       signal: AbortSignal.timeout(SSE_TIMEOUT_MS),
     });
 
-    if (response.status === 401) {
+    if (response.status === 401 && this.session.canRefresh()) {
       this.session.invalidate();
       // See postSSE() above: cancel this attempt's unread body so its #215
       // debug line still fires.
       await response.body?.cancel();
-      const retryCookie = await this.session.getCookie();
-      headers['Cookie'] = retryCookie;
+      Object.assign(headers, await this.session.getAuthHeaders());
       const retryResponse = await this.loggedFetch('PUT', url, {
         method: 'PUT',
         headers,
@@ -462,18 +460,17 @@ export class DockhandClient {
     body?: FormData | Buffer | string,
     extraHeaders?: Record<string, string>,
   ): Promise<Response> {
-    const cookie = await this.session.getCookie();
-    const headers: Record<string, string> = { 'Cookie': cookie, ...extraHeaders };
+    const authHeaders = await this.session.getAuthHeaders();
+    const headers: Record<string, string> = { ...authHeaders, ...extraHeaders };
 
     let response = await this.loggedFetch(method, url, { method, headers, body });
 
-    if (response.status === 401) {
+    if (response.status === 401 && this.session.canRefresh()) {
       this.session.invalidate();
       // See postSSE() above: cancel this attempt's unread body so its #215
       // debug line still fires.
       await response.body?.cancel();
-      const retryCookie = await this.session.getCookie();
-      headers['Cookie'] = retryCookie;
+      Object.assign(headers, await this.session.getAuthHeaders());
       response = await this.loggedFetch(method, url, { method, headers, body });
     }
 
@@ -486,7 +483,7 @@ export class DockhandClient {
       // trigger_git_webhook's `?secret=<value>`).
       throw new Error(
         redactQueryStrings(
-          `Dockhand API error: ${method} ${url} returned ${response.status}: ${errorBody || response.statusText}`
+          `Dockhand API error: ${method} ${url} returned ${response.status}: ${errorBody || response.statusText}${this.authFailureHint(response.status)}`
         )
       );
     }
@@ -495,10 +492,10 @@ export class DockhandClient {
   }
 
   private async request<T>(method: string, url: string, body?: unknown): Promise<T> {
-    const cookie = await this.session.getCookie();
+    const authHeaders = await this.session.getAuthHeaders();
 
     const headers: Record<string, string> = {
-      'Cookie': cookie,
+      ...authHeaders,
       'Accept': 'application/json',
     };
 
@@ -512,14 +509,13 @@ export class DockhandClient {
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
 
-    // Auto-relogin on 401
-    if (response.status === 401) {
+    // Auto-relogin on 401. Never in token mode (see canRefresh()).
+    if (response.status === 401 && this.session.canRefresh()) {
       this.session.invalidate();
       // See postSSE() above: cancel this attempt's unread body so its #215
       // debug line still fires.
       await response.body?.cancel();
-      const retryCookie = await this.session.getCookie();
-      headers['Cookie'] = retryCookie;
+      Object.assign(headers, await this.session.getAuthHeaders());
       response = await this.loggedFetch(method, url, {
         method,
         headers,
@@ -536,7 +532,7 @@ export class DockhandClient {
       // trigger_git_webhook's `?secret=<value>`).
       throw new Error(
         redactQueryStrings(
-          `Dockhand API error: ${method} ${url} returned ${response.status}: ${errorBody || response.statusText}`
+          `Dockhand API error: ${method} ${url} returned ${response.status}: ${errorBody || response.statusText}${this.authFailureHint(response.status)}`
         )
       );
     }
@@ -551,12 +547,22 @@ export class DockhandClient {
     return text as unknown as T;
   }
 
+  /**
+   * Appended to a 401 error in token mode, where no relogin is attempted: the token
+   * itself was rejected. Names the variable, never its value.
+   */
+  private authFailureHint(status: number): string {
+    return status === 401 && !this.session.canRefresh()
+      ? ' (DOCKHAND_API_TOKEN was rejected: revoked, expired, or this endpoint only accepts a session cookie)'
+      : '';
+  }
+
   private async parseSSEResponse(response: Response): Promise<SSEResult> {
     if (!response.ok) {
       const errorBody = await response.text().catch(() => '');
       return {
         success: false,
-        error: `HTTP ${response.status}: ${errorBody || response.statusText}`,
+        error: `HTTP ${response.status}: ${errorBody || response.statusText}${this.authFailureHint(response.status)}`,
       };
     }
 

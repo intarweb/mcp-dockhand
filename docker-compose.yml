@@ -9,6 +9,8 @@ services:
       - DOCKHAND_URL=${DOCKHAND_URL}
       - DOCKHAND_USERNAME=${DOCKHAND_USERNAME}
       - DOCKHAND_PASSWORD=${DOCKHAND_PASSWORD}
+      # Optional personal API token; blank (the default) keeps username/password auth.
+      - DOCKHAND_API_TOKEN=${DOCKHAND_API_TOKEN:-}
       - MCP_PORT=8080
       # Optional /mcp request-body cap (bytes). Unset -> blank -> 100 MB default
       # (getRequestBodyLimitConfig treats "" as unset). Raise it so load_image can
