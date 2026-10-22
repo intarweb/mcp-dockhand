@@ -47,6 +47,24 @@ describe('collectContributors', () => {
   });
 });
 
+describe('collectContributors — Thanks: trailer only accepts complete handles (review #314)', () => {
+  it('rejects bot handles instead of truncating them to a different account', () => {
+    expect(collectContributors([commit('chore: x\n\nThanks: @dependabot[bot], @renovate[bot]')])).toEqual([]);
+  });
+
+  it('ignores @-substrings inside other tokens, e.g. an e-mail address', () => {
+    expect(collectContributors([commit('fix: y\n\nThanks: contributor <foo@bar.com>')])).toEqual([]);
+  });
+
+  it('accepts trailing punctuation and mixed separators', () => {
+    expect(collectContributors([commit('fix: z\n\nThanks: @terafin, @cbrostrom; @someone.')])).toEqual(['cbrostrom', 'someone', 'terafin']);
+  });
+
+  it('rejects handles GitHub would not allow (leading hyphen, too long)', () => {
+    expect(collectContributors([commit('fix: w\n\nThanks: @-bad @' + 'a'.repeat(40))])).toEqual([]);
+  });
+});
+
 describe('generateNotes', () => {
   it('returns a Contributors section naming every contributor', async () => {
     const notes = await generateNotes({ exclude: ['strausmann'] }, {

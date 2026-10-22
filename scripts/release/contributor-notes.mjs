@@ -23,7 +23,10 @@
 const NOREPLY = /^(?:\d+\+)?([A-Za-z0-9-]+)@users\.noreply\.github\.com$/i;
 const CO_AUTHOR = /^co-authored-by:[^<\n]*<([^>\n]+)>/gim;
 const THANKS = /^thanks:(.*)$/gim;
-const HANDLE = /@([A-Za-z0-9](?:[A-Za-z0-9-]{0,38}))/g;
+// A Thanks: trailer is split on whitespace and commas; each token must be one complete
+// GitHub handle (optionally followed by punctuation). Matching @-substrings anywhere would
+// credit `@dependabot` for `@dependabot[bot]` and `@bar` for `<foo@bar.com>`.
+const HANDLE_TOKEN = /^@([A-Za-z0-9](?:[A-Za-z0-9-]{0,38}))[.;:!?)]*$/;
 
 function loginFromEmail(email) {
   const match = NOREPLY.exec(email?.trim() ?? '');
@@ -50,7 +53,7 @@ export function collectContributors(commits, exclude = []) {
     const message = commit.message ?? '';
     for (const [, email] of message.matchAll(CO_AUTHOR)) add(loginFromEmail(email));
     for (const [, rest] of message.matchAll(THANKS)) {
-      for (const [, handle] of rest.matchAll(HANDLE)) add(handle);
+      for (const token of rest.split(/[\s,]+/)) add(HANDLE_TOKEN.exec(token)?.[1]);
     }
   }
 
