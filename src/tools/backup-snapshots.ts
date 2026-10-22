@@ -19,7 +19,7 @@
  * (the shared method behind client.get/post/put/delete) always sets exactly that header
  * (verified by reading src/client/dockhand-client.ts's `request()`), so every tool below
  * uses the plain client.get()/client.delete() — never postSSE(), which would only ever
- * get `{jobId}` back here and there is no polling tool for it (same reasoning as
+ * get `{jobId}` back here and the caller would have to poll it with get_job instead of getting the result in one call (same reasoning as
  * run_backup_config in backup-configs.ts and run_backup_destination_task in
  * backup-destinations.ts).
  *

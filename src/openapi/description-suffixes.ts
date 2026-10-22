@@ -207,6 +207,32 @@ const DEPLOY_LOG_MAY_CONTAIN_SECRETS =
   'The returned text lands in the tool call itself, and therefore in transcripts and logs. Treat ' +
   'it as potentially secret-bearing and do not quote it wholesale.';
 
+/**
+ * GET /api/jobs/{id} (Finsys/dockhand v1.0.54, src/lib/server/jobs.ts): `lines` is the
+ * job's raw output, the same `docker compose` output as a deploy log, and the whole array
+ * comes back on every poll. The store is an in-memory Map: a finished job is swept 10
+ * minutes after its last update, and a Dockhand restart drops all of them, so a 404 is
+ * expected rather than an error.
+ */
+const JOB_LINES_CUMULATIVE_AND_SECRET_BEARING =
+  'Every poll returns ALL lines produced so far, not just new ones, so poll sparingly and only ' +
+  'read past what you already saw; `result` stays null until the job finishes. A finished job ' +
+  'is deleted 10 minutes after its last update, and a Dockhand restart drops every job: a 404 ' +
+  'then means "gone", not "failed" — check the resource itself (e.g. list_stacks) instead.' +
+  DEPLOY_LOG_MAY_CONTAIN_SECRETS;
+
+/**
+ * DELETE /api/jobs/{id} only sets `cancelRequested` (jobs.ts cancelJob); an operation has to
+ * poll it to stop. In v1.0.54 the only one that does is vulnerabilities/scan-all, and the MCP
+ * runs that synchronously, so no job the MCP hands out (deploys, restarts, batch updates)
+ * actually stops.
+ */
+const JOB_CANCEL_IS_COOPERATIVE =
+  'IMPORTANT: cancellation is cooperative. This only flags the job; it stops only if the ' +
+  'operation checks the flag, and as of Dockhand 1.0.54 deploys, restarts and other stack ' +
+  'operations never do. `cancelled: true` means the flag was set, NOT that the work stopped — ' +
+  'follow up with get_job and check the resource before assuming nothing changed.';
+
 const EXPORT_IMAGE_RETURNS_BASE64_TAR =
   ' Returns the image as a base64-encoded tar archive (prefixed "base64:"), NOT JSON — ' +
   'decode the part after "base64:" to bytes and write a .tar that `docker load` accepts. ' +
@@ -236,6 +262,8 @@ export const TOOL_DESCRIPTION_SUFFIXES: Readonly<Record<string, string>> = {
   dump_backup_snapshot_file: BACKUP_SNAPSHOT_DUMP_MAY_EXPOSE_VOLUME_SECRETS,
   download_backup_snapshot_file: BACKUP_SNAPSHOT_DOWNLOAD_RETURNS_RAW_BYTES,
   get_stack_deploy_log: DEPLOY_LOG_MAY_CONTAIN_SECRETS,
+  get_job: JOB_LINES_CUMULATIVE_AND_SECRET_BEARING,
+  cancel_job: JOB_CANCEL_IS_COOPERATIVE,
   export_image: EXPORT_IMAGE_RETURNS_BASE64_TAR,
   export_volume: EXPORT_VOLUME_RETURNS_BASE64_TAR,
 };
