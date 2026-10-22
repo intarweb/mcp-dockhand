@@ -657,7 +657,7 @@ names `DOCKHAND_API_TOKEN`.
 | `enable_user_mfa`, `disable_user_mfa` | 403 |
 | `test_oidc_provider` | 403 |
 | `create_auth_token`, `revoke_auth_token` | 403 by design: a leaked token cannot mint or revoke tokens |
-| `get_navigation_settings` / `update_navigation_settings` | Per-user values are missing / `scope=user` fails |
+| `get_navigation_settings` / `update_navigation_settings` | Global scope (the default) works; per-user values are missing (`user: null`) and `scope=user` fails with 401 |
 
 Use the username/password pair for these, or the Dockhand UI.
 

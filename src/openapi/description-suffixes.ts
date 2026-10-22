@@ -217,6 +217,15 @@ const SESSION_COOKIE_ONLY =
   'Needs the username/password session: with DOCKHAND_API_TOKEN this endpoint does not ' +
   'see the token and fails (401/403) or answers as if no user were signed in.';
 
+/**
+ * settings/navigation (Finsys/dockhand v1.0.54): the global scope (the default) goes
+ * through the bearer-aware authorize(); only the per-user part reads validateSession().
+ */
+const NAVIGATION_USER_SCOPE_SESSION_ONLY =
+  'With DOCKHAND_API_TOKEN only the global scope (the default) works: per-user preferences ' +
+  'need the username/password session, so a read returns `user: null` and an update with ' +
+  'scope "user" fails with 401.';
+
 const EXPORT_IMAGE_RETURNS_BASE64_TAR =
   ' Returns the image as a base64-encoded tar archive (prefixed "base64:"), NOT JSON — ' +
   'decode the part after "base64:" to bytes and write a .tar that `docker load` accepts. ' +
@@ -259,8 +268,8 @@ export const TOOL_DESCRIPTION_SUFFIXES: Readonly<Record<string, string>> = {
   test_oidc_provider: SESSION_COOKIE_ONLY,
   create_auth_token: SESSION_COOKIE_ONLY,
   revoke_auth_token: SESSION_COOKIE_ONLY,
-  get_navigation_settings: SESSION_COOKIE_ONLY,
-  update_navigation_settings: SESSION_COOKIE_ONLY,
+  get_navigation_settings: NAVIGATION_USER_SCOPE_SESSION_ONLY,
+  update_navigation_settings: NAVIGATION_USER_SCOPE_SESSION_ONLY,
   export_image: EXPORT_IMAGE_RETURNS_BASE64_TAR,
   export_volume: EXPORT_VOLUME_RETURNS_BASE64_TAR,
 };

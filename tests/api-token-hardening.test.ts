@@ -187,11 +187,22 @@ describe('session-cookie-only tools say so in their description', () => {
     'get_auth_session', 'get_profile', 'update_profile', 'get_profile_preferences',
     'update_profile_preferences', 'add_user_role', 'remove_user_role', 'clear_user_roles',
     'enable_user_mfa', 'disable_user_mfa', 'test_oidc_provider', 'create_auth_token',
-    'revoke_auth_token', 'get_navigation_settings', 'update_navigation_settings',
+    'revoke_auth_token',
   ];
 
   it.each(tools)('%s is a registered tool and carries the DOCKHAND_API_TOKEN note', (tool) => {
     expect(TOOL_ENDPOINT_MAP[tool]).toBeDefined();
     expect(TOOL_DESCRIPTION_SUFFIXES[tool]).toMatch(/DOCKHAND_API_TOKEN/);
+  });
+});
+
+describe('navigation settings: only the per-user scope needs a session', () => {
+  // PUT /api/settings/navigation defaults to scope=global and uses the bearer-aware
+  // authorize(); only scope=user calls validateSession(cookies) (v1.0.54).
+  it.each(['get_navigation_settings', 'update_navigation_settings'])('%s says the global scope works with a token', (tool) => {
+    const suffix = TOOL_DESCRIPTION_SUFFIXES[tool];
+    expect(suffix).toMatch(/DOCKHAND_API_TOKEN/);
+    expect(suffix).toMatch(/global scope .*works/);
+    expect(suffix).not.toMatch(/fails \(401\/403\) or answers as if no user/);
   });
 });
