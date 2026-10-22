@@ -10,7 +10,7 @@
 > hartes Gate in `scripts/validate-mcp-tools.mjs` (Exit 1 + Auto-Issue) — hier weiterhin nur
 > zur Übersicht gelistet. Die übrigen drei Typen bleiben vollständig advisory.
 
-**Erzeugt:** 2026-10-04T15:24:58.670Z
+**Erzeugt:** 2026-10-22T10:49:10.840Z
 
 ## Zusammenfassung
 
@@ -27,14 +27,14 @@ Das Tool sendet ein Body-Feld, das der OpenAPI-Contract nicht kennt (nach Aussch
 | Tool | HTTP | Pfad | Feld | Datei |
 |------|------|------|------|-------|
 | `activate_license` | POST | `/api/license` | `licenseKey` | system.ts:199 |
-| `adopt_stack` | POST | `/api/stacks/adopt` | `name` | stacks.ts:759 |
-| `adopt_stack` | POST | `/api/stacks/adopt` | `composePath` | stacks.ts:759 |
-| `adopt_stack` | POST | `/api/stacks/adopt` | `envPath` | stacks.ts:759 |
-| `adopt_stack` | POST | `/api/stacks/adopt` | `sourceDir` | stacks.ts:759 |
+| `adopt_stack` | POST | `/api/stacks/adopt` | `name` | stacks.ts:769 |
+| `adopt_stack` | POST | `/api/stacks/adopt` | `composePath` | stacks.ts:769 |
+| `adopt_stack` | POST | `/api/stacks/adopt` | `envPath` | stacks.ts:769 |
+| `adopt_stack` | POST | `/api/stacks/adopt` | `sourceDir` | stacks.ts:769 |
 | `create_environment` | POST | `/api/environments` | `url` | environments.ts:157 |
 | `create_user` | POST | `/api/users` | `roles` | users.ts:33 |
-| `remove_stack_env_vars` | PUT | `/api/stacks/{name}/env` | `keys` | stacks.ts:684 |
-| `remove_stack_env_vars` | PUT | `/api/stacks/{name}/env/raw` | `keys` | stacks.ts:692 |
+| `remove_stack_env_vars` | PUT | `/api/stacks/{name}/env` | `keys` | stacks.ts:694 |
+| `remove_stack_env_vars` | PUT | `/api/stacks/{name}/env/raw` | `keys` | stacks.ts:702 |
 | `set_container_auto_update` | POST | `/api/auto-update/{containerName}` | `policy` | auto-update.ts:37 |
 | `test_environment_connection` | POST | `/api/environments/test` | `url` | environments.ts:225 |
 
@@ -45,10 +45,10 @@ Das Tool hat ein untypisiertes `z.record(...)`-Feld (z.B. `settings`), obwohl de
 | Tool | HTTP | Pfad | Feld | Datei |
 |------|------|------|------|-------|
 | `create_backup_config` | POST | `/api/backup/configs` | `destinationId`, `targetName` | backup-configs.ts:110 |
-| `create_backup_destination` | POST | `/api/backup/destinations` | `name`, `repository`, `password` | backup-destinations.ts:79 |
+| `create_backup_destination` | POST | `/api/backup/destinations` | `name`, `repository`, `password` | backup-destinations.ts:83 |
 | `create_config_set` | POST | `/api/config-sets` | `name` | users.ts:281 |
 | `create_container` | POST | `/api/containers` | `name`, `image` | containers.ts:308 |
-| `create_environment_notification` | POST | `/api/environments/{environmentId}/notifications` | `notificationId` | environments.ts:317 |
+| `create_environment_notification` | POST | `/api/environments/{environmentId}/notifications` | `notificationId` | environments.ts:370 |
 | `create_git_credential` | POST | `/api/git/credentials` | `name` | git-stacks.ts:156 |
 | `create_git_stack` | POST | `/api/git/stacks` | `stackName` | git-stacks.ts:324 |
 | `create_ldap_provider` | POST | `/api/auth/ldap` | `name`, `serverUrl`, `baseDn` | auth.ts:65 |
@@ -63,23 +63,23 @@ Das Tool hat ein untypisiertes `z.record(...)`-Feld (z.B. `settings`), obwohl de
 | `create_volume` | POST | `/api/volumes` | `name` | volumes.ts:117 |
 | `receive_git_webhook` | POST | `/api/git/webhook/{webhookId}` | - | git-stacks.ts:394 |
 | `set_dashboard_preferences` | POST | `/api/dashboard/preferences` | - | dashboard.ts:29 |
-| `set_environment_image_prune` | POST | `/api/environments/{environmentId}/image-prune` | - | environments.ts:300 |
+| `set_environment_image_prune` | POST | `/api/environments/{environmentId}/image-prune` | - | environments.ts:353 |
 | `set_environment_update_check` | POST | `/api/environments/{environmentId}/update-check` | - | environments.ts:283 |
 | `set_grid_preferences` | POST | `/api/preferences/grid` | `gridId` | users.ts:263 |
 | `set_sidebar_preferences` | POST | `/api/preferences/sidebar` | `order`, `hidden` | preferences.ts:24 |
-| `test_backup_destination_inline` | POST | `/api/backup/destinations/test` | - | backup-destinations.ts:199 |
+| `test_backup_destination_inline` | POST | `/api/backup/destinations/test` | - | backup-destinations.ts:211 |
 | `test_notification_config` | POST | `/api/notifications/test` | `type` | notifications.ts:65 |
 | `test_registry` | POST | `/api/registries/test` | - | registries.ts:124 |
 | `test_secret_provider` | POST | `/api/secret-providers/{id}/test` | - | secret-providers.ts:125 |
 | `test_secret_provider_config` | POST | `/api/secret-providers/test` | `type`, `config` | secret-providers.ts:151 |
 | `update_auth_settings` | PUT | `/api/auth/settings` | - | auth.ts:202 |
 | `update_backup_config` | PUT | `/api/backup/configs/{configId}` | - | backup-configs.ts:138 |
-| `update_backup_destination` | PUT | `/api/backup/destinations/{destinationId}` | - | backup-destinations.ts:118 |
+| `update_backup_destination` | PUT | `/api/backup/destinations/{destinationId}` | - | backup-destinations.ts:126 |
 | `update_config_set` | PUT | `/api/config-sets/{configSetId}` | - | users.ts:298 |
 | `update_container` | POST | `/api/containers/{containerId}/update` | - | containers.ts:279 |
 | `update_container_runtime` | POST | `/api/containers/{containerId}/update-runtime` | - | containers.ts:580 |
 | `update_environment` | PUT | `/api/environments/{environmentId}` | - | environments.ts:197 |
-| `update_environment_notification` | PUT | `/api/environments/{environmentId}/notifications/{notificationId}` | - | environments.ts:348 |
+| `update_environment_notification` | PUT | `/api/environments/{environmentId}/notifications/{notificationId}` | - | environments.ts:401 |
 | `update_general_settings` | POST | `/api/settings/general` | - | system.ts:112 |
 | `update_git_credential` | PUT | `/api/git/credentials/{credentialId}` | - | git-stacks.ts:187 |
 | `update_git_repository` | PUT | `/api/git/repositories/{repositoryId}` | - | git-stacks.ts:370 |
@@ -96,7 +96,7 @@ Das Tool hat ein untypisiertes `z.record(...)`-Feld (z.B. `settings`), obwohl de
 | `update_secret_provider` | PUT | `/api/secret-providers/{id}` | - | secret-providers.ts:92 |
 | `update_template_source` | PUT | `/api/templates/sources` | `id` | templates.ts:52 |
 | `update_user` | PUT | `/api/users/{userId}` | - | users.ts:50 |
-| `validate_stack_compose` | POST | `/api/stacks/{name}/validate` | `compose` | stacks.ts:900 |
+| `validate_stack_compose` | POST | `/api/stacks/{name}/validate` | `compose` | stacks.ts:910 |
 
 ## BODY_CONTRACT_UNRESOLVED (39)
 
@@ -108,7 +108,7 @@ Für diesen body-tragenden Endpunkt liegt (noch) kein OpenAPI-Contract vor (fehl
 | `deploy_git_repository` | POST | `/api/git/repositories/{repositoryId}/deploy` | - | git-stacks.ts:264 |
 | `deploy_git_stack` | POST | `/api/git/stacks/{stackId}/deploy` | - | git-stacks.ts:88 |
 | `deploy_git_stack_stream` | POST | `/api/git/stacks/{stackId}/deploy-stream` | - | git-stacks.ts:351 |
-| `init_backup_destination` | POST | `/api/backup/destinations/{destinationId}/init` | - | backup-destinations.ts:132 |
+| `init_backup_destination` | POST | `/api/backup/destinations/{destinationId}/init` | - | backup-destinations.ts:140 |
 | `load_image` | POST | `/api/images/load` | - | images.ts:40 |
 | `logout` | POST | `/api/auth/logout` | - | auth.ts:210 |
 | `pause_container` | POST | `/api/containers/{containerId}/pause` | - | containers.ts:208 |
@@ -119,19 +119,19 @@ Für diesen body-tragenden Endpunkt liegt (noch) kein OpenAPI-Contract vor (fehl
 | `prune_volumes` | POST | `/api/prune/volumes` | - | system.ts:245 |
 | `release_volume_browse` | POST | `/api/volumes/{volumeName}/browse/release` | - | volumes.ts:75 |
 | `restart_container` | POST | `/api/containers/{containerId}/restart` | - | containers.ts:198 |
-| `restart_stack` | POST | `/api/stacks/{name}/restart` | - | stacks.ts:84 |
+| `restart_stack` | POST | `/api/stacks/{name}/restart` | - | stacks.ts:94 |
 | `run_backup_config` | POST | `/api/backup/configs/{configId}/run` | - | backup-configs.ts:158 |
 | `run_schedule_now` | POST | `/api/schedules/{type}/{scheduleId}/run` | - | schedules.ts:56 |
 | `scan_all_vulnerabilities` | POST | `/api/vulnerabilities/scan-all` | - | vulnerabilities.ts:45 |
 | `set_default_registry` | POST | `/api/registries/{registryId}/default` | - | registries.ts:56 |
 | `start_container` | POST | `/api/containers/{containerId}/start` | - | containers.ts:178 |
-| `start_stack` | POST | `/api/stacks/{name}/start` | - | stacks.ts:64 |
+| `start_stack` | POST | `/api/stacks/{name}/start` | - | stacks.ts:74 |
 | `stop_backup_config` | POST | `/api/backup/configs/{configId}/stop` | - | backup-configs.ts:165 |
 | `stop_container` | POST | `/api/containers/{containerId}/stop` | - | containers.ts:188 |
-| `stop_stack` | POST | `/api/stacks/{name}/stop` | - | stacks.ts:74 |
+| `stop_stack` | POST | `/api/stacks/{name}/stop` | - | stacks.ts:84 |
 | `sync_git_repository` | POST | `/api/git/repositories/{repositoryId}/sync` | - | git-stacks.ts:271 |
 | `sync_git_stack` | POST | `/api/git/stacks/{stackId}/sync` | - | git-stacks.ts:95 |
-| `test_backup_destination` | POST | `/api/backup/destinations/{destinationId}/test` | - | backup-destinations.ts:166 |
+| `test_backup_destination` | POST | `/api/backup/destinations/{destinationId}/test` | - | backup-destinations.ts:174 |
 | `test_environment` | POST | `/api/environments/{environmentId}/test` | - | environments.ts:211 |
 | `test_git_repository` | POST | `/api/git/repositories/{repositoryId}/test` | - | git-stacks.ts:278 |
 | `test_git_stack` | POST | `/api/git/stacks/{stackId}/test` | - | git-stacks.ts:102 |
@@ -140,7 +140,7 @@ Für diesen body-tragenden Endpunkt liegt (noch) kein OpenAPI-Contract vor (fehl
 | `test_oidc_provider` | POST | `/api/auth/oidc/{providerId}/test` | - | auth.ts:51 |
 | `toggle_schedule` | POST | `/api/schedules/{type}/{scheduleId}/toggle` | - | schedules.ts:66 |
 | `toggle_system_schedule` | POST | `/api/schedules/system/{scheduleId}/toggle` | - | schedules.ts:73 |
-| `trigger_environment_image_prune` | PUT | `/api/environments/{environmentId}/image-prune` | - | environments.ts:357 |
+| `trigger_environment_image_prune` | PUT | `/api/environments/{environmentId}/image-prune` | - | environments.ts:410 |
 | `unpause_container` | POST | `/api/containers/{containerId}/unpause` | - | containers.ts:218 |
 | `upload_container_file` | POST | `/api/containers/{containerId}/files/upload` | - | containers.ts:454 |
 

@@ -254,8 +254,8 @@ export function registerSystemTools(server: McpServer, client: DockhandClient): 
       operation: z.string().describe('Operation to run. Valid per entityType: containers = start|stop|restart|pause|unpause|remove; images|volumes|networks = remove; stacks = start|stop|restart|down|remove (required by the real endpoint)'),
       entityType: z.enum(['containers', 'images', 'volumes', 'networks', 'stacks']).describe('Type of entity the batch operation targets (required by the real endpoint)'),
       items: z.array(z.object({
-        id: z.string().describe('Entity ID or name to operate on'),
-        name: z.string().describe('Entity display name (used for cleanup bookkeeping on container removal, and in progress reporting)'),
+        id: z.string().describe('Entity ID to operate on (containers, images, volumes, networks). For stacks pass the stack name; since Dockhand 1.0.54 the handler reads `name` first and falls back to `id`'),
+        name: z.string().describe('Entity display name (used for cleanup bookkeeping on container removal, and in progress reporting). For stacks this is the stack name the operation targets'),
       })).min(1).describe('Entities to process; must be a non-empty array (required by the real endpoint)'),
       options: z.object({
         force: z.boolean().optional().describe('Force the operation where applicable (e.g. force-remove a running container or in-use image/volume)'),

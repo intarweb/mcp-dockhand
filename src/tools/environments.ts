@@ -5,7 +5,7 @@
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { DockhandClient } from '../client/dockhand-client.js';
-import { registerTool, jsonResponse } from '../utils/tool-helper.js';
+import { registerTool, jsonResponse, textResponse } from '../utils/tool-helper.js';
 import { encodePath } from '../utils/encode-path.js';
 
 /**
@@ -277,10 +277,63 @@ export function registerEnvironmentTools(server: McpServer, client: DockhandClie
   registerTool(server, 'set_environment_update_check',
     {
       environmentId: z.number().describe('Environment ID'),
-      settings: z.record(z.string(), z.unknown()).describe('Update-check settings'),
+      settings: z.record(z.string(), z.unknown()).describe('Update-check settings: enabled, cron, autoUpdate, vulnerabilityCriteria, and (Dockhand 1.0.54) minimumReleaseAgeHours plus minimumReleaseAgeOverride (true = use this environment\'s own hours, false = inherit the global value from get_minimum_release_age)'),
     },
     async ({ environmentId, settings }) => {
       return jsonResponse(await client.post(`/api/environments/${encodePath(environmentId)}/update-check`, settings));
+    }
+  );
+
+  // --- State report (Dockhand 1.0.54, #299) ---
+  //
+  // Ground truth: Finsys/dockhand v1.0.54,
+  // src/routes/api/environments/report/+server.ts (export) and
+  // src/routes/api/environments/[id]/report/+server.ts (schedule). The export needs a
+  // paid license (403 otherwise) and answers with a file attachment whose content type
+  // follows `format`: JSON comes back parsed, CSV as text, and the PDF as raw bytes
+  // framed `base64:` like the other binary download tools.
+
+  registerTool(server, 'export_environment_report',
+    {
+      environmentId: z.number().optional().describe('Environment ID to report on; omit to report on every environment the caller can access'),
+      format: z.enum(['json', 'csv', 'pdf']).optional().describe('Output format (default json). pdf is returned as base64-framed bytes'),
+    },
+    async ({ environmentId, format = 'json' }) => {
+      const query = { env: environmentId, format };
+      if (format === 'pdf') {
+        const buffer = await client.getRaw('/api/environments/report', query);
+        return textResponse(`base64:${buffer.toString('base64')}`);
+      }
+      const report = await client.get('/api/environments/report', query);
+      return typeof report === 'string' ? textResponse(report) : jsonResponse(report);
+    }
+  );
+
+  registerTool(server, 'get_environment_report_schedule',
+    { environmentId: z.number().describe('Environment ID') },
+    async ({ environmentId }) => {
+      return jsonResponse(await client.get(`/api/environments/${encodePath(environmentId)}/report`));
+    }
+  );
+
+  registerTool(server, 'set_environment_report_schedule',
+    {
+      environmentId: z.number().describe('Environment ID'),
+      enabled: z.boolean().optional().describe('Send the report on the schedule. Omitted is treated as false by the real endpoint (it does not merge with the stored config)'),
+      cron: z.string().optional().describe('Cron expression for the schedule; omitted defaults server-side to "0 6 1 * *" (06:00 on the 1st of each month)'),
+      format: z.enum(['pdf', 'csv']).optional().describe('Attachment format; omitted defaults server-side to pdf'),
+      notificationId: z.number().nullable().optional().describe('Notification channel ID to mail the report to; must be an enabled SMTP channel when enabled is true'),
+    },
+    // Like update_semver_settings, the handler writes a fresh config from the body
+    // instead of merging, so read get_environment_report_schedule first to change a
+    // single field.
+    async ({ environmentId, enabled, cron, format, notificationId }) => {
+      const body: Record<string, unknown> = {};
+      if (enabled !== undefined) body.enabled = enabled;
+      if (cron !== undefined) body.cron = cron;
+      if (format !== undefined) body.format = format;
+      if (notificationId !== undefined) body.notificationId = notificationId;
+      return jsonResponse(await client.post(`/api/environments/${encodePath(environmentId)}/report`, body));
     }
   );
 

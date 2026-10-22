@@ -64,9 +64,11 @@ export function registerBackupDestinationTools(server: McpServer, client: Dockha
       hostPath: z.string().optional().describe('Host filesystem path this destination is mounted from, when repository is a local path'),
       cacert: z.string().optional().describe('PEM-encoded CA certificate for a private/self-signed TLS backend'),
       tlsClientCert: z.string().optional().describe('PEM-encoded client certificate+key for mutual TLS'),
+      sshPrivateKey: z.string().optional().describe('PEM-encoded SSH private key for an sftp: repository (required together with sshKnownHosts for sftp:); stored encrypted and never returned'),
+      sshKnownHosts: z.string().optional().describe('known_hosts lines pinning the SFTP server\'s host key (required together with sshPrivateKey for an sftp: repository)'),
       policies: z.string().optional().describe('JSON-encoded maintenance policy object (pruneEnabled, pruneSchedule, pruneMaxUnused, checkEnabled, checkSchedule, verifyEnabled, verifySchedule, verifyDataSubset, autoUnlock); omitted defaults server-side to prune+check enabled monthly, verify disabled'),
     },
-    async ({ name, repository, password, envVars, backupFlags, restoreFlags, flags, hostPath, cacert, tlsClientCert, policies }) => {
+    async ({ name, repository, password, envVars, backupFlags, restoreFlags, flags, hostPath, cacert, tlsClientCert, sshPrivateKey, sshKnownHosts, policies }) => {
       const body: Record<string, unknown> = { name, repository, password };
       if (envVars !== undefined) body.envVars = envVars;
       if (backupFlags !== undefined) body.backupFlags = backupFlags;
@@ -75,6 +77,8 @@ export function registerBackupDestinationTools(server: McpServer, client: Dockha
       if (hostPath !== undefined) body.hostPath = hostPath;
       if (cacert !== undefined) body.cacert = cacert;
       if (tlsClientCert !== undefined) body.tlsClientCert = tlsClientCert;
+      if (sshPrivateKey !== undefined) body.sshPrivateKey = sshPrivateKey;
+      if (sshKnownHosts !== undefined) body.sshKnownHosts = sshKnownHosts;
       if (policies !== undefined) body.policies = policies;
       return jsonResponse(await client.post('/api/backup/destinations', body));
     }
@@ -100,9 +104,11 @@ export function registerBackupDestinationTools(server: McpServer, client: Dockha
       hostPath: z.string().optional().describe('New host filesystem path this destination is mounted from, when repository is a local path'),
       cacert: z.string().optional().describe('New PEM-encoded CA certificate for a private/self-signed TLS backend'),
       tlsClientCert: z.string().optional().describe('New PEM-encoded client certificate+key for mutual TLS'),
+      sshPrivateKey: z.string().optional().describe('New PEM-encoded SSH private key for an sftp: repository; omit to keep the stored key. Refused with 409 while a backup using this destination is running'),
+      sshKnownHosts: z.string().optional().describe('New known_hosts lines for the SFTP server; omit to keep the stored value. Refused with 409 while a backup using this destination is running'),
       policies: z.string().optional().describe('New JSON-encoded maintenance policy object; supplying it re-registers the repo_prune/repo_check/repo_verify maintenance schedules'),
     },
-    async ({ destinationId, name, repository, password, envVars, backupFlags, restoreFlags, flags, hostPath, cacert, tlsClientCert, policies }) => {
+    async ({ destinationId, name, repository, password, envVars, backupFlags, restoreFlags, flags, hostPath, cacert, tlsClientCert, sshPrivateKey, sshKnownHosts, policies }) => {
       const body: Record<string, unknown> = {};
       if (name !== undefined) body.name = name;
       if (repository !== undefined) body.repository = repository;
@@ -114,6 +120,8 @@ export function registerBackupDestinationTools(server: McpServer, client: Dockha
       if (hostPath !== undefined) body.hostPath = hostPath;
       if (cacert !== undefined) body.cacert = cacert;
       if (tlsClientCert !== undefined) body.tlsClientCert = tlsClientCert;
+      if (sshPrivateKey !== undefined) body.sshPrivateKey = sshPrivateKey;
+      if (sshKnownHosts !== undefined) body.sshKnownHosts = sshKnownHosts;
       if (policies !== undefined) body.policies = policies;
       return jsonResponse(await client.put(`/api/backup/destinations/${encodePath(destinationId)}`, body));
     }
@@ -187,8 +195,10 @@ export function registerBackupDestinationTools(server: McpServer, client: Dockha
       envVars: z.record(z.string(), z.string()).optional().describe('Cloud storage credential environment variables to test with, for an unsaved destination'),
       cacert: z.string().optional().describe('PEM-encoded CA certificate to test with, for an unsaved destination'),
       tlsClientCert: z.string().optional().describe('PEM-encoded client certificate+key to test with, for an unsaved destination'),
+      sshPrivateKey: z.string().optional().describe('PEM-encoded SSH private key to test with, for an unsaved sftp: destination'),
+      sshKnownHosts: z.string().optional().describe('known_hosts lines to test with, for an unsaved sftp: destination'),
     },
-    async ({ destinationId, repository, password, envVars, cacert, tlsClientCert }) => {
+    async ({ destinationId, repository, password, envVars, cacert, tlsClientCert, sshPrivateKey, sshKnownHosts }) => {
       const body: Record<string, unknown> = {};
       if (destinationId !== undefined) body.destinationId = destinationId;
       if (repository !== undefined) body.repository = repository;
@@ -196,6 +206,8 @@ export function registerBackupDestinationTools(server: McpServer, client: Dockha
       if (envVars !== undefined) body.envVars = envVars;
       if (cacert !== undefined) body.cacert = cacert;
       if (tlsClientCert !== undefined) body.tlsClientCert = tlsClientCert;
+      if (sshPrivateKey !== undefined) body.sshPrivateKey = sshPrivateKey;
+      if (sshKnownHosts !== undefined) body.sshKnownHosts = sshKnownHosts;
       return jsonResponse(await client.post('/api/backup/destinations/test', body));
     }
   );

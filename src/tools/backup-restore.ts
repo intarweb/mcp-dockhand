@@ -185,8 +185,9 @@ export function registerBackupRestoreTools(server: McpServer, client: DockhandCl
       skipStackFiles: z.boolean().optional().describe('Preview a data-only restore (captured compose/.env skipped) — only read when mode is supplied'),
       mergeStackFiles: z.boolean().optional().describe('Preview the stack-dir restore as a MERGE (existing files kept, snapshot overlaid) instead of a full overwrite (stale files cleared). Read only by this preview endpoint — the run endpoint below never reads it. Not covered by the endpoint\'s own @openapi body: annotation; found only by reading previewRestoreTargets()\'s call and restore-targets.ts\'s RestoreTargetInput'),
       volumes: z.array(z.string()).optional().describe('Specific volume keys to preview targets for — only read when mode is supplied'),
+      postRestore: z.enum(['start', 'recreate', 'redeploy', 'none']).optional().describe('Post-restore action to preview with (Dockhand 1.0.54) — only read when mode is supplied. "redeploy" rewrites the stack dir, so the preview reports the stack files as overwritten even with skipStackFiles'),
     },
-    async ({ destinationId, snapshotId, includeTargets, targetEnvId, mode, environmentId, targetType, targetName, targetPath, volumeDestinations, skipStackFiles, mergeStackFiles, volumes }) => {
+    async ({ destinationId, snapshotId, includeTargets, targetEnvId, mode, environmentId, targetType, targetName, targetPath, volumeDestinations, skipStackFiles, mergeStackFiles, volumes, postRestore }) => {
       const body: Record<string, unknown> = { destinationId, snapshotId };
       if (includeTargets !== undefined) body.includeTargets = includeTargets;
       if (targetEnvId !== undefined) body.targetEnvId = targetEnvId;
@@ -199,6 +200,7 @@ export function registerBackupRestoreTools(server: McpServer, client: DockhandCl
       if (skipStackFiles !== undefined) body.skipStackFiles = skipStackFiles;
       if (mergeStackFiles !== undefined) body.mergeStackFiles = mergeStackFiles;
       if (volumes !== undefined) body.volumes = volumes;
+      if (postRestore !== undefined) body.postRestore = postRestore;
       // Plain client.post(): the handler is backed by jobResult()/createJobResponse(),
       // which honours Accept: application/json (always sent by DockhandClient) with a
       // synchronous buffered result — see the file header. NEVER client.postSSE() here.

@@ -20,6 +20,16 @@ export function registerStackTools(server: McpServer, client: DockhandClient): v
     }
   );
 
+  // Dockhand 1.0.54 (#300), src/routes/api/stack-stats/+server.ts. environmentId is
+  // required here even though the handler reads `env` optionally: without it the
+  // handler returns [] silently, which would read as "no stacks running".
+  registerTool(server, 'get_stack_stats',
+    { environmentId: z.number().describe('Environment ID (required)') },
+    async ({ environmentId }) => {
+      return jsonResponse(await client.get('/api/stack-stats', { env: environmentId }));
+    }
+  );
+
   registerTool(server, 'create_stack',
     {
       environmentId: z.number().describe('Environment ID'),
