@@ -46,6 +46,12 @@
       }
     ],
     [
+      "./scripts/release/contributor-notes.mjs",
+      {
+        "exclude": ["strausmann"]
+      }
+    ],
+    [
       "@semantic-release/changelog",
       {
         "changelogFile": "CHANGELOG.md",
