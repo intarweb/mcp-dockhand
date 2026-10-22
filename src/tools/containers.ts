@@ -287,23 +287,40 @@ export function registerContainerTools(server: McpServer, client: DockhandClient
       image: z.string().describe('Docker image (e.g. nginx:alpine)'),
       startAfterCreate: z.boolean().optional().describe('Start container after creation'),
       env: z.array(z.string()).optional().describe('Environment variables (KEY=VALUE format)'),
-      ports: z.record(z.string(), z.unknown()).optional().describe('Port bindings'),
-      volumes: z.array(z.string()).optional().describe('Volume mounts'),
-      restartPolicy: z.string().optional().describe('Restart policy (e.g. unless-stopped)'),
+      // CreateContainerOptions.ports: ONE {HostIp?, HostPort} object per container port.
+      // Dockhand wraps it in an array itself (PortBindings[port] = [hostConfig]), so
+      // Docker's own `{"80/tcp": [{...}]}` form would be double-wrapped and rejected.
+      ports: z.record(
+        z.string().regex(/^\d+\/(tcp|udp|sctp)$/, 'container port must be "<port>/<tcp|udp|sctp>", e.g. "80/tcp"'),
+        z.object({
+          HostIp: z.string().optional(),
+          HostPort: z.string(),
+        }).strict(),
+      ).optional().describe('Port bindings keyed by container port, one object per port (NOT an array): {"80/tcp": {"HostPort": "8080"}, "443/tcp": {"HostIp": "127.0.0.1", "HostPort": "8443"}}. HostPort is a string'),
+      volumeBinds: z.array(z.string()).optional().describe('Bind mounts as "host:container[:ro]" (Docker -v syntax)'),
+      volumes: z.array(z.string()).optional().describe('Deprecated alias for volumeBinds (bind mounts in "host:container[:ro]" syntax, NOT Dockhand anonymous volumes), kept for existing callers; merged with volumeBinds when both are given'),
+      restartPolicy: z.enum(['no', 'always', 'unless-stopped', 'on-failure']).optional().describe('Restart policy; Dockhand defaults to "no"'),
+      restartMaxRetries: z.number().int().nonnegative().optional().describe('Maximum restart attempts; only honoured by Dockhand with restartPolicy "on-failure"'),
       networkMode: z.string().optional().describe('Network mode'),
       labels: z.record(z.string(), z.string()).optional().describe('Container labels'),
+      cmd: z.array(z.string()).optional().describe('Command to run, overriding the image default'),
     },
-    async ({ environmentId, name, image, startAfterCreate, env: envVars, ports, volumes, restartPolicy, networkMode, labels }) => {
+    async ({ environmentId, name, image, startAfterCreate, env: envVars, ports, volumeBinds, volumes, restartPolicy, restartMaxRetries, networkMode, labels, cmd }) => {
+      // Dockhand's POST /api/containers takes CreateContainerOptions field names
+      // (lowercase: env, labels, volumeBinds, ...) and builds the Docker HostConfig
+      // itself (src/lib/server/docker.ts createContainer). Docker-style keys such as
+      // Env, Labels or HostConfig.Binds are never read: the container is created
+      // with no env, labels or mounts, and the call still reports success.
       const body: Record<string, unknown> = { name, image };
       if (startAfterCreate !== undefined) body.startAfterCreate = startAfterCreate;
-      if (envVars) body.Env = envVars;
-      if (labels) body.Labels = labels;
-      const hostConfig: Record<string, unknown> = {};
-      if (restartPolicy) hostConfig.RestartPolicy = { Name: restartPolicy };
-      if (ports) hostConfig.PortBindings = ports;
-      if (volumes) hostConfig.Binds = volumes;
-      if (networkMode) hostConfig.NetworkMode = networkMode;
-      if (Object.keys(hostConfig).length > 0) body.HostConfig = hostConfig;
+      if (envVars) body.env = envVars;
+      if (labels) body.labels = labels;
+      if (ports) body.ports = ports;
+      if (volumeBinds || volumes) body.volumeBinds = [...(volumeBinds ?? []), ...(volumes ?? [])];
+      if (restartPolicy) body.restartPolicy = restartPolicy;
+      if (restartMaxRetries !== undefined) body.restartMaxRetries = restartMaxRetries;
+      if (networkMode) body.networkMode = networkMode;
+      if (cmd) body.cmd = cmd;
 
       return jsonResponse(await client.post('/api/containers', body, { env: environmentId }));
     }

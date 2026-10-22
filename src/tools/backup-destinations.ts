@@ -20,7 +20,7 @@
  * JSON result for any caller sending `Accept: application/json`. `client.post()`
  * always sends that header (see DockhandClient.request()), so both tools use the
  * plain `client.post()`/no `postSSE()` — postSSE would only ever get `{jobId}`
- * back here and there is no polling tool for it.
+ * back here and the caller would have to poll it with get_job instead of getting the result in one call.
  *
  * Doc gap noticed while reading the handler (not present in the pinned openapi
  * spec's `requestBody` schema, only in the actual handler body): POST/PUT accept

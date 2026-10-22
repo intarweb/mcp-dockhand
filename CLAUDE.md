@@ -79,6 +79,7 @@ server.tool(
 
 - Commit-Messages: Conventional Commits (feat, fix, docs, chore, refactor)
 - Changelog: Keep a Changelog Format (CHANGELOG.md)
+- Externe Beiträge: Release-Notes bekommen automatisch einen „Contributors“-Abschnitt (`scripts/release/contributor-notes.mjs`) aus GitHub-noreply-Autoren und `Co-authored-by`-Zeilen. Nutzt ein Contributor eine private E-Mail-Adresse, einen Trailer `Thanks: @login` in einen Commit des PRs aufnehmen.
 - Releases: Semver Tags (v1.0.0) → GHCR Image Build
 - Branches: main + feature/fix Branches, PRs für Änderungen
 

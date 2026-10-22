@@ -23,8 +23,8 @@
  * src/lib/server/sse-parser.ts) instead of a `{jobId}` to poll. DockhandClient's shared
  * `request()` always sets `Accept: application/json` (verified by reading
  * src/client/dockhand-client.ts), so all three tools below use the plain client.post()
- * — NEVER client.postSSE(), which would only ever get `{jobId}` back here and there is
- * no polling tool for it (same reasoning as run_backup_config/run_backup_destination_task
+ * — NEVER client.postSSE(), which would only ever get `{jobId}` back here and the caller would have to
+ * poll it with get_job instead of getting the result in one call (same reasoning as run_backup_config/run_backup_destination_task
  * in backup-configs.ts/backup-destinations.ts).
  *
  * preview_backup_restore body (verified against preview/+server.ts):
@@ -235,7 +235,7 @@ export function registerBackupRestoreTools(server: McpServer, client: DockhandCl
       // Plain client.post(): createJobResponse() honours Accept: application/json
       // (always sent by DockhandClient) with a synchronous buffered final result —
       // see the file header. NEVER client.postSSE() here — it would only ever get
-      // `{jobId}` back and there is no polling tool for it.
+      // `{jobId}` back and the caller would have to poll it with get_job instead of getting the result in one call.
       return jsonResponse(await client.post('/api/backup/restore', body));
     }
   );
