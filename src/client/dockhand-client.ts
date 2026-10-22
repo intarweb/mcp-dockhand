@@ -168,13 +168,12 @@ export class DockhandClient {
       signal: AbortSignal.timeout(SSE_TIMEOUT_MS),
     });
 
-    if (response.status === 401) {
+    if (response.status === 401 && this.session.canRefresh()) {
       this.session.invalidate();
       // This attempt's body is never read — cancel it so #215's proxy stream
       // still fires its (discarded-attempt) debug line instead of never firing.
       await response.body?.cancel();
-      // Retry once after re-login — a no-op in token mode, where invalidate()
-      // is too, so the retry carries the same bearer token.
+      // Retry once after re-login. Never in token mode (see canRefresh()).
       Object.assign(headers, await this.session.getAuthHeaders());
       const retryResponse = await this.loggedFetch('POST', url, {
         method: 'POST',
@@ -208,7 +207,7 @@ export class DockhandClient {
       signal: AbortSignal.timeout(SSE_TIMEOUT_MS),
     });
 
-    if (response.status === 401) {
+    if (response.status === 401 && this.session.canRefresh()) {
       this.session.invalidate();
       // See postSSE() above: cancel this attempt's unread body so its #215
       // debug line still fires.
@@ -466,7 +465,7 @@ export class DockhandClient {
 
     let response = await this.loggedFetch(method, url, { method, headers, body });
 
-    if (response.status === 401) {
+    if (response.status === 401 && this.session.canRefresh()) {
       this.session.invalidate();
       // See postSSE() above: cancel this attempt's unread body so its #215
       // debug line still fires.
@@ -484,7 +483,7 @@ export class DockhandClient {
       // trigger_git_webhook's `?secret=<value>`).
       throw new Error(
         redactQueryStrings(
-          `Dockhand API error: ${method} ${url} returned ${response.status}: ${errorBody || response.statusText}`
+          `Dockhand API error: ${method} ${url} returned ${response.status}: ${errorBody || response.statusText}${this.authFailureHint(response.status)}`
         )
       );
     }
@@ -510,8 +509,8 @@ export class DockhandClient {
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
 
-    // Auto-relogin on 401 — a no-op in token mode, where invalidate() is too.
-    if (response.status === 401) {
+    // Auto-relogin on 401. Never in token mode (see canRefresh()).
+    if (response.status === 401 && this.session.canRefresh()) {
       this.session.invalidate();
       // See postSSE() above: cancel this attempt's unread body so its #215
       // debug line still fires.
@@ -533,7 +532,7 @@ export class DockhandClient {
       // trigger_git_webhook's `?secret=<value>`).
       throw new Error(
         redactQueryStrings(
-          `Dockhand API error: ${method} ${url} returned ${response.status}: ${errorBody || response.statusText}`
+          `Dockhand API error: ${method} ${url} returned ${response.status}: ${errorBody || response.statusText}${this.authFailureHint(response.status)}`
         )
       );
     }
@@ -548,12 +547,22 @@ export class DockhandClient {
     return text as unknown as T;
   }
 
+  /**
+   * Appended to a 401 error in token mode, where no relogin is attempted: the token
+   * itself was rejected. Names the variable, never its value.
+   */
+  private authFailureHint(status: number): string {
+    return status === 401 && !this.session.canRefresh()
+      ? ' (DOCKHAND_API_TOKEN was rejected: revoked, expired, or this endpoint only accepts a session cookie)'
+      : '';
+  }
+
   private async parseSSEResponse(response: Response): Promise<SSEResult> {
     if (!response.ok) {
       const errorBody = await response.text().catch(() => '');
       return {
         success: false,
-        error: `HTTP ${response.status}: ${errorBody || response.statusText}`,
+        error: `HTTP ${response.status}: ${errorBody || response.statusText}${this.authFailureHint(response.status)}`,
       };
     }
 

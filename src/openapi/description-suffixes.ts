@@ -207,6 +207,16 @@ const DEPLOY_LOG_MAY_CONTAIN_SECRETS =
   'The returned text lands in the tool call itself, and therefore in transcripts and logs. Treat ' +
   'it as potentially secret-bearing and do not quote it wholesale.';
 
+/**
+ * Endpoints that read only the session cookie (`validateSession(cookies)`) or refuse
+ * bearer auth on purpose (auth/tokens POST, auth/tokens/[id] DELETE), Finsys/dockhand
+ * v1.0.54. With DOCKHAND_API_TOKEN they fail or answer as if nobody were signed in,
+ * which the endpoint's own summary gives no hint of.
+ */
+const SESSION_COOKIE_ONLY =
+  'Needs the username/password session: with DOCKHAND_API_TOKEN this endpoint does not ' +
+  'see the token and fails (401/403) or answers as if no user were signed in.';
+
 const EXPORT_IMAGE_RETURNS_BASE64_TAR =
   ' Returns the image as a base64-encoded tar archive (prefixed "base64:"), NOT JSON — ' +
   'decode the part after "base64:" to bytes and write a .tar that `docker load` accepts. ' +
@@ -236,6 +246,21 @@ export const TOOL_DESCRIPTION_SUFFIXES: Readonly<Record<string, string>> = {
   dump_backup_snapshot_file: BACKUP_SNAPSHOT_DUMP_MAY_EXPOSE_VOLUME_SECRETS,
   download_backup_snapshot_file: BACKUP_SNAPSHOT_DOWNLOAD_RETURNS_RAW_BYTES,
   get_stack_deploy_log: DEPLOY_LOG_MAY_CONTAIN_SECRETS,
+  get_auth_session: SESSION_COOKIE_ONLY,
+  get_profile: SESSION_COOKIE_ONLY,
+  update_profile: SESSION_COOKIE_ONLY,
+  get_profile_preferences: SESSION_COOKIE_ONLY,
+  update_profile_preferences: SESSION_COOKIE_ONLY,
+  add_user_role: SESSION_COOKIE_ONLY,
+  remove_user_role: SESSION_COOKIE_ONLY,
+  clear_user_roles: SESSION_COOKIE_ONLY,
+  enable_user_mfa: SESSION_COOKIE_ONLY,
+  disable_user_mfa: SESSION_COOKIE_ONLY,
+  test_oidc_provider: SESSION_COOKIE_ONLY,
+  create_auth_token: SESSION_COOKIE_ONLY,
+  revoke_auth_token: SESSION_COOKIE_ONLY,
+  get_navigation_settings: SESSION_COOKIE_ONLY,
+  update_navigation_settings: SESSION_COOKIE_ONLY,
   export_image: EXPORT_IMAGE_RETURNS_BASE64_TAR,
   export_volume: EXPORT_VOLUME_RETURNS_BASE64_TAR,
 };

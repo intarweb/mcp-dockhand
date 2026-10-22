@@ -73,8 +73,8 @@ DOCKHAND_URL=https://your-server.com DOCKHAND_USERNAME=admin DOCKHAND_PASSWORD=s
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `DOCKHAND_URL` | Yes | - | Dockhand server URL |
-| `DOCKHAND_USERNAME` | Yes | - | Dockhand username |
-| `DOCKHAND_PASSWORD` | Yes | - | Dockhand password |
+| `DOCKHAND_USERNAME` | Yes, unless `DOCKHAND_API_TOKEN` is set | - | Dockhand username |
+| `DOCKHAND_PASSWORD` | Yes, unless `DOCKHAND_API_TOKEN` is set | - | Dockhand password |
 | `DOCKHAND_API_TOKEN` | No | - | Optional alternative to the username/password pair: a personal API token (`dh_…`) sent as `Authorization: Bearer`. When set, `DOCKHAND_USERNAME`/`DOCKHAND_PASSWORD` are not required. |
 | `MCP_PORT` | No | `8080` | Port for the MCP server |
 | `MCP_SESSION_TTL_SECONDS` | No | `1800` | Inactivity timeout before a retained MCP session is expired |
@@ -625,16 +625,41 @@ and a session cookie. It automatically:
 - Handles session timeout (24h)
 
 Optionally, set `DOCKHAND_API_TOKEN` to a personal API token instead — create one
-in the Dockhand UI under `/api/auth/tokens` (Dockhand v1.0.25+). Every request
+on your Dockhand **profile page, under API tokens** (Dockhand v1.0.26+; bearer auth
+did not work with an enterprise license in v1.0.25). The token acts as the user who
+created it, with that user's roles. Every request
 then carries `Authorization: Bearer <token>`: no login round-trip, no session
 cookie to expire, and no re-login on 401. The token also works against an account
 with MFA enabled, where the session login above cannot complete a TOTP challenge
 non-interactively.
 
 When `DOCKHAND_API_TOKEN` is set it is used and the username/password pair is
-ignored, so the pair is not required alongside it. With neither the token nor a
-complete credential pair, the server exits at startup rather than failing every
-tool call later.
+ignored (a warning is logged when both are set), so the pair is not required
+alongside it. With neither the token nor a complete credential pair, the server exits
+at startup rather than failing every tool call later. The same happens for a token
+that is not `dh_…` base64url text (for example one with a line break from copy/paste);
+the error names the variable, never its value.
+
+A rejected token is not retried: Dockhand puts an IP into a 5-minute cooldown (HTTP
+429) after 15 failed bearer attempts per minute, which would hit every client behind
+the same address. A revoked or expired token therefore fails fast with an error that
+names `DOCKHAND_API_TOKEN`.
+
+**Limitations in token mode.** Some Dockhand endpoints read only the session cookie
+(`validateSession`) or refuse bearer auth on purpose, so these tools do not work with
+`DOCKHAND_API_TOKEN` (their descriptions say so too):
+
+| Tool(s) | Behaviour with a token |
+|---------|------------------------|
+| `get_auth_session` | Reports `authenticated: false` (HTTP 200) |
+| `get_profile`, `update_profile`, `get_profile_preferences`, `update_profile_preferences` | 401 |
+| `add_user_role`, `remove_user_role`, `clear_user_roles` | 403 |
+| `enable_user_mfa`, `disable_user_mfa` | 403 |
+| `test_oidc_provider` | 403 |
+| `create_auth_token`, `revoke_auth_token` | 403 by design: a leaked token cannot mint or revoke tokens |
+| `get_navigation_settings` / `update_navigation_settings` | Per-user values are missing / `scope=user` fails |
+
+Use the username/password pair for these, or the Dockhand UI.
 
 ### Troubleshooting
 

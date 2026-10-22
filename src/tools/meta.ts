@@ -14,6 +14,7 @@ import { specInfoVersion } from '../openapi/spec-loader.js';
 import { getStatsSnapshot } from '../utils/runtime-stats.js';
 import { log } from '../utils/log-context.js';
 import { encodePath } from '../utils/encode-path.js';
+import { parseApiToken } from '../auth/api-token.js';
 
 export interface ServerInfo {
   version: string;
@@ -391,8 +392,8 @@ export interface ConfigValidation {
  *
  * Env-var checks are Boolean-only (`!!process.env.X`): presence, never content. If any
  * required var is missing, the login probe is skipped entirely (`credentialsValid: false`,
- * `statusCode: null`) — there is nothing meaningful to attempt without a URL, username, and
- * password all present, and calling out anyway would risk a confusing error unrelated to the
+ * `statusCode: null`) — there is nothing meaningful to attempt without a URL plus a complete
+ * credential set (DOCKHAND_API_TOKEN, or username and password), and calling out anyway would risk a confusing error unrelated to the
  * real problem (a missing var).
  *
  * `attemptLogin` is injected (returns a `LoginProbeResult`, see that interface's own doc
@@ -658,7 +659,7 @@ export async function attemptRawLogin(baseUrl: string): Promise<LoginProbeResult
   // "never returns the hash/secret" — so a successful probe cannot pull
   // credentials into this process. The token is sent as a header and is never
   // logged (loggedProbe records method/route/status only).
-  const apiToken = process.env['DOCKHAND_API_TOKEN'];
+  const apiToken = parseApiToken(process.env['DOCKHAND_API_TOKEN']).token;
   if (apiToken) {
     const response = await loggedProbe('GET', '/api/auth', () =>
       fetch(`${baseUrl}/api/auth/tokens`, {
@@ -668,7 +669,14 @@ export async function attemptRawLogin(baseUrl: string): Promise<LoginProbeResult
       }),
     );
     // No requiresMfa / session-cookie subtlety exists in this mode: Dockhand
-    // either accepts the token or it does not.
+    // either accepts the token or it does not. One exception: with Dockhand's
+    // auth disabled this endpoint answers 400 "Authentication is not enabled"
+    // (auth/tokens/+server.ts, v1.0.54) while every other request works without
+    // credentials, so that is a usable configuration, not a failure.
+    if (response.status === 400) {
+      const bodyText = await response.text().catch(() => '');
+      return { statusCode: 400, completedAuth: /Authentication is not enabled/.test(bodyText) };
+    }
     return { statusCode: response.status, completedAuth: response.status === 200 };
   }
 

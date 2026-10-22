@@ -133,6 +133,7 @@ describe('loggedFetch body-inclusive duration + real bytes (#215)', () => {
     (instance as any).session = {
       getAuthHeaders: async () => ({ Cookie: 'session=x' }),
       invalidate: () => {},
+      canRefresh: () => true,
     };
     return instance;
   }

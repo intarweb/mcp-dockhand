@@ -161,19 +161,15 @@ describe('DockhandClient — Bearer auth end to end', () => {
     expect(init.headers['Cookie']).toBeUndefined();
   });
 
-  it('re-sends the same Bearer header on a 401 retry', async () => {
+  it('does not retry a 401 in token mode (a resend would count twice towards Dockhand\'s per-IP bearer failure limit)', async () => {
     const fetchMock = vi
       .fn()
-      .mockResolvedValueOnce(mockResponse({ ok: false, status: 401, statusText: 'Unauthorized' }))
-      .mockResolvedValueOnce(mockResponse({ ok: true, status: 200, statusText: 'OK', body: '{"ok":true}' }));
+      .mockResolvedValueOnce(mockResponse({ ok: false, status: 401, statusText: 'Unauthorized' }));
     vi.stubGlobal('fetch', fetchMock);
 
     const client = new DockhandClient(tokenConfig());
-    await client.get('/api/health');
+    await expect(client.get('/api/health')).rejects.toThrow(/DOCKHAND_API_TOKEN/);
 
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    const [, retryInit] = fetchMock.mock.calls[1];
-    expect(retryInit.headers['Authorization']).toBe(`Bearer ${TOKEN}`);
-    expect(retryInit.headers['Cookie']).toBeUndefined();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

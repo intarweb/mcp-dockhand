@@ -56,6 +56,7 @@ describe('client debug logging', () => {
     (instance as any).session = {
       getAuthHeaders: async () => ({ Cookie: 'session=x' }),
       invalidate: () => {},
+      canRefresh: () => true,
     };
     return instance;
   }

@@ -225,9 +225,18 @@ export class SessionManager {
   }
 
   /**
+   * Whether a 401 can be fixed by logging in again. False in token mode: the token
+   * is the only credential, so resending it after a 401 just repeats the failure, and
+   * Dockhand counts every rejected bearer attempt towards a 15-per-minute, per-IP
+   * limit that locks the whole IP out for 5 minutes (hooks.server.ts, v1.0.54).
+   */
+  canRefresh(): boolean {
+    return !this.isTokenMode();
+  }
+
+  /**
    * Invalidate current session (triggers re-login on next request).
-   * No-op in token mode — there is no session to clear, and the 401 retry path
-   * calls this unconditionally.
+   * No-op in token mode — there is no session to clear.
    */
   invalidate(): void {
     if (this.isTokenMode()) {
