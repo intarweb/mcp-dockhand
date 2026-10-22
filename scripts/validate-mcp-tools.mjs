@@ -406,6 +406,7 @@ const IGNORED_PATTERNS = [
   '/api/environments/{*}/icon',          // Icon-Upload (binary)
   '/api/environments/{*}/disk-warning',  // Disk-Warning (intern)
   '/api/profile/avatar',                 // Avatar-Upload (binary)
+  '/passkeys',                           // WebAuthn-Passkeys (Browser-Zeremonie, #302)
 ];
 
 /**
