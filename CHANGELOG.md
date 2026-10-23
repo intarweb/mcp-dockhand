@@ -5,6 +5,34 @@ All notable changes to **MCP-Dockhand** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.19.0](https://github.com/strausmann/mcp-dockhand/compare/v1.18.1...v1.19.0) (2026-10-23)
+
+### Features
+
+* **auth:** support DOCKHAND_API_TOKEN bearer auth ([18089be](https://github.com/strausmann/mcp-dockhand/commit/18089bed0e641adb4cec296c28d6a7c01f27a5f9))
+* **tools:** add Dockhand 1.0.54 report, stack-stats and release-age tools ([2ba57fb](https://github.com/strausmann/mcp-dockhand/commit/2ba57fbb603e414ec5a29ded827bf1fd24fb3d5f)), closes [#299](https://github.com/strausmann/mcp-dockhand/issues/299) [#300](https://github.com/strausmann/mcp-dockhand/issues/300) [#301](https://github.com/strausmann/mcp-dockhand/issues/301)
+* **tools:** add get_job and cancel_job for background jobs ([3a993d4](https://github.com/strausmann/mcp-dockhand/commit/3a993d4aa5bf3d4738b29552e03e49c95f1c8263))
+
+### Bug Fixes
+
+* **auth:** harden API token mode ([c3606aa](https://github.com/strausmann/mcp-dockhand/commit/c3606aa8c7808f120a952e87aed3537f32454319)), closes [#311](https://github.com/strausmann/mcp-dockhand/issues/311)
+* **auth:** scope the navigation token-mode note to per-user settings ([e5fa7e7](https://github.com/strausmann/mcp-dockhand/commit/e5fa7e71cb242b0c1900022f98e7c8736496a52a))
+* **containers:** send CreateContainerOptions field names from create_container ([4d0cd85](https://github.com/strausmann/mcp-dockhand/commit/4d0cd8528129b8dae8d5a62ff3758070d367f8af))
+* **containers:** type create_container ports and restart policy, merge bind aliases ([5e042a8](https://github.com/strausmann/mcp-dockhand/commit/5e042a8ad9b337d5b0f4292063ccc768f160e081)), closes [#307](https://github.com/strausmann/mcp-dockhand/issues/307)
+* **deps:** add vite as devDependency for vitest 5 ([ec792b5](https://github.com/strausmann/mcp-dockhand/commit/ec792b5d767b80e684b7c022a76c9238968d79c9)), closes [#305](https://github.com/strausmann/mcp-dockhand/issues/305)
+* **deps:** apply npm audit fixes within existing ranges ([bdf02d2](https://github.com/strausmann/mcp-dockhand/commit/bdf02d261c6da5a90d0fd756710a938022d9cde8)), closes [#315](https://github.com/strausmann/mcp-dockhand/issues/315)
+* **release:** only accept complete handles in Thanks: trailers ([06f814b](https://github.com/strausmann/mcp-dockhand/commit/06f814b41b4c546898d6122af32ee9f18a3c5ed0))
+* **tools:** document cooperative cancel, cumulative lines and job TTL ([0bb5417](https://github.com/strausmann/mcp-dockhand/commit/0bb5417cc5b5db9a5301e0e5bdecba6a34c28880)), closes [#309](https://github.com/strausmann/mcp-dockhand/issues/309)
+
+### Documentation
+
+* **api:** regenerate coverage, endpoint map and body-contract report for v1.0.54 ([68825fc](https://github.com/strausmann/mcp-dockhand/commit/68825fc54fe939f62550467e654e7d1cec2ea5f1)), closes [#303](https://github.com/strausmann/mcp-dockhand/issues/303)
+
+
+### Contributors
+
+Thanks to @cbrostrom and @terafin for contributing to this release.
+
 ## [1.18.1](https://github.com/strausmann/mcp-dockhand/compare/v1.18.0...v1.18.1) (2026-10-04)
 
 ### Bug Fixes
